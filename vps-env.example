@@ -1,0 +1,51 @@
+# =============================================================================
+# RenewHub — .env DE PRODUÇÃO (VPS)
+# Copie para .env NO SERVIDOR e preencha os segredos. NUNCA commite o .env.
+# =============================================================================
+
+PORT="3000"
+DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}"
+AUTH_SECRET="GERAR_NO_SERVIDOR_COM_openssl_rand_-base64_32"
+BASE_URL="https://wa.reneewveins.com"
+NODE_ENV="production"
+HOSTNAME="0.0.0.0"
+
+NEXTAUTH_URL="https://wa.reneewveins.com"
+AUTH_TRUST_HOST="true"
+NEXT_PUBLIC_APP_URL="https://wa.reneewveins.com"
+NEXT_PUBLIC_API_URL="https://wa.reneewveins.com/api"
+
+# Modo cliente: só Conversas visíveis
+NEXT_PUBLIC_CLIENT_MODE="true"
+
+APP_NAME="RenewHub"
+LOGO_URL=""
+FAVICON_URL=""
+NEXT_PUBLIC_CHAT_PAGE_SIZE="50"
+NEXT_PUBLIC_ALLOW_INDEXING="false"
+
+NEXT_PUBLIC_SWAGGER_ENABLED="true"
+NEXT_PUBLIC_SWAGGER_USERNAME="admin"
+NEXT_PUBLIC_SWAGGER_PASSWORD="TROCAR_POR_SENHA_FORTE"
+
+BAILEYS_LOG_LEVEL="error"
+REMOVE_BG_API_KEY=""
+ENABLE_NOTIFICATIONS="true"
+ENABLE_AUTO_UPDATE_CHECK="true"
+ENABLE_EXPERIMENTAL_FEATURES="false"
+
+SESSION_TIMEOUT_HOURS="24"
+MAX_UPLOAD_SIZE_MB="50"
+ENABLE_RATE_LIMITING="true"
+RATE_LIMIT_PER_MINUTE="60"
+
+TZ="America/Sao_Paulo"
+LOCALE="pt-BR"
+MEDIA_STORAGE_PATH="uploads"
+NEXT_PUBLIC_GA_ID=""
+
+# Banco + admin inicial (usados pelo compose no primeiro boot)
+MYSQL_ROOT_PASSWORD="TROCAR_POR_SENHA_FORTE"
+MYSQL_DATABASE="wa_akg"
+ADMIN_EMAIL="admin@renewveins.com"
+ADMIN_PASSWORD="TROCAR_POR_SENHA_FORTE"

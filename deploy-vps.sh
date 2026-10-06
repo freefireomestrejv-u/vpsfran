@@ -19,12 +19,15 @@ ufw --force enable
 echo "[2/5] Código..."
 if [ ! -d /opt/renewhub ]; then
   git clone -b feat/tema-logo-menu https://github.com/freefireomestrejv-u/vpsfran.git /opt/renewhub
+else
+  echo "Pasta existe — atualizando código..."
+  git -C /opt/renewhub pull --ff-only || echo "AVISO: git pull falhou, seguindo com o código atual."
 fi
 cd /opt/renewhub
 
 echo "[3/5] Segredos do .env..."
 if [ ! -f .env ]; then
-  cp .env.vps.example .env
+  cp vps-env.example .env
   # Gera AUTH_SECRET e senhas fortes onde estiver placeholder
   SECRET=$(openssl rand -base64 32)
   DBPASS=$(openssl rand -hex 16)
