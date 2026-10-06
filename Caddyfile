@@ -1,0 +1,4 @@
+# Domínio público do gateway (troque se mudar o subdomínio)
+wa.renewveins.com {
+	reverse_proxy app:3000
+}
