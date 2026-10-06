@@ -56,6 +56,9 @@ app.prepare().then(() => {
   // Start Scheduler
   import("../modules/whatsapp/scheduler").then(m => m.startScheduler());
 
+  // Start automatic (lightweight) profile picture sync
+  import("../modules/whatsapp/pic-sync").then(m => m.startPicSync());
+
   // Cloudflare 520 Fix: increase keep-alive timeout so Node doesn't kill idle connections that Cloudflare expects to reuse
   // See: https://github.com/vercel/next.js/issues/48962
   server.keepAliveTimeout = 120 * 1000; // 120 seconds
@@ -71,7 +74,7 @@ app.prepare().then(() => {
     // Terima kasih telah menggunakan WA-AKG.
     const MONITOR_URL = "https://api-wa-akg.aikeigroup.net/api/ping";
     const APP_URL = process.env.BASE_URL || `http://${hostname}:${port}`; // Kamu bisa mengganti ini untuk keamanan WA-AKG kamu. Tapi jangan menghapus semua Heartbeat nya. Terima Kasih.
-    const APP_NAME = process.env.APP_NAME || "WA-AKG";
+    const APP_NAME = process.env.APP_NAME || "RenewHub";
 
     const sendHeartbeat = async () => {
       try {

@@ -14,7 +14,7 @@ export default function SettingsPage() {
     const isSuperAdmin = (authSession?.user as any)?.role === "SUPERADMIN";
 
     const [systemConfig, setSystemConfig] = useState({
-        appName: "WA-AKG",
+        appName: "RenewHub",
         logoUrl: "",
         timezone: "Asia/Jakarta",
         enableRegistration: true
@@ -44,7 +44,7 @@ export default function SettingsPage() {
                 const data = responseData?.data;
                 if (data && !responseData.error) {
                     setSystemConfig({
-                        appName: data.appName || "WA-AKG",
+                        appName: data.appName || "RenewHub",
                         logoUrl: data.logoUrl || "",
                         // @ts-ignore
                         faviconUrl: data.faviconUrl || "/favicon.ico",
@@ -66,13 +66,13 @@ export default function SettingsPage() {
             });
 
             if (res.ok) {
-                toast.success("System settings updated. Refresh to see changes.");
+                toast.success("Configurações salvas. Atualize a página para ver.");
             } else {
-                toast.error("Failed to update system settings");
+                toast.error("Falha ao salvar configurações");
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error saving system settings");
+            toast.error("Erro ao salvar configurações");
         } finally {
             setSystemLoading(false);
         }
@@ -83,8 +83,8 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Settings</h2>
-                <p className="text-muted-foreground text-sm mt-1">Global system configuration. Only SuperAdmins can make changes.</p>
+                <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Configurações</h2>
+                <p className="text-muted-foreground text-sm mt-1">Configuração global do sistema. Só superadmins alteram.</p>
             </div>
 
             {!isSuperAdmin && (
@@ -93,9 +93,9 @@ export default function SettingsPage() {
                         <div className="flex items-start gap-3">
                             <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                             <div>
-                                <p className="text-sm font-medium text-yellow-900">View Only Mode</p>
+                                <p className="text-sm font-medium text-yellow-900">Modo só leitura</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                    Only Superadmins can modify system settings. You can view current settings but cannot make changes.
+                                    Só superadmins alteram as configurações. Você pode ver, mas não mudar.
                                 </p>
                             </div>
                         </div>
@@ -106,25 +106,25 @@ export default function SettingsPage() {
             {/* System Configuration (Global) */}
             <Card className="border-primary/20 bg-primary/5">
                 <CardHeader>
-                    <CardTitle className="text-xl">App Configuration</CardTitle>
-                    <CardDescription>Global settings for the application branding and access control.</CardDescription>
+                    <CardTitle className="text-xl">Configuração do app</CardTitle>
+                    <CardDescription>Ajustes globais de marca e controle de acesso.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Application Name</Label>
+                            <Label>Nome do aplicativo</Label>
                             <input
                                 className={inputClass}
-                                placeholder="WA-AKG"
+                                placeholder="RenewHub"
                                 value={systemConfig.appName}
                                 onChange={(e) => setSystemConfig(prev => ({ ...prev, appName: e.target.value }))}
                                 disabled={!isSuperAdmin}
                             />
-                            <p className="text-xs text-muted-foreground">Changes the name in the sidebar and browser title.</p>
+                            <p className="text-xs text-muted-foreground">Muda o nome na sidebar e na aba do navegador.</p>
                         </div>
 
                         <div className="grid gap-2">
-                            <Label>Timezone</Label>
+                            <Label>Fuso horário</Label>
                             <select
                                 className={inputClass}
                                 value={systemConfig.timezone}
@@ -137,13 +137,13 @@ export default function SettingsPage() {
                                     </option>
                                 ))}
                             </select>
-                            <p className="text-xs text-muted-foreground">Scheduler will use this timezone.</p>
+                            <p className="text-xs text-muted-foreground">O agendador usa este fuso.</p>
                         </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Logo URL</Label>
+                            <Label>URL do logo</Label>
                             <input
                                 className={inputClass}
                                 placeholder="https://example.com/logo.png"
@@ -151,10 +151,10 @@ export default function SettingsPage() {
                                 onChange={(e) => setSystemConfig(prev => ({ ...prev, logoUrl: e.target.value }))}
                                 disabled={!isSuperAdmin}
                             />
-                            <p className="text-xs text-muted-foreground">URL for the main dashboard logo.</p>
+                            <p className="text-xs text-muted-foreground">URL do logo principal do painel.</p>
                         </div>
                         <div className="grid gap-2">
-                            <Label>Favicon URL</Label>
+                            <Label>URL do favicon</Label>
                             <input
                                 className={inputClass}
                                 placeholder="/favicon.ico"
@@ -162,14 +162,14 @@ export default function SettingsPage() {
                                 onChange={(e) => setSystemConfig(prev => ({ ...prev, faviconUrl: e.target.value }))}
                                 disabled={!isSuperAdmin}
                             />
-                            <p className="text-xs text-muted-foreground">URL for the browser tab icon.</p>
+                            <p className="text-xs text-muted-foreground">URL do ícone da aba do navegador.</p>
                         </div>
                     </div>
 
                     <div className="flex items-center justify-between space-x-2 pt-2 border-t border-border/50">
                         <Label htmlFor="enable-registration" className="flex flex-col space-y-1">
-                            <span>Enable User Registration</span>
-                            <span className="font-normal text-xs text-muted-foreground">Allow new users to sign up for accounts. Turn off to keep the platform private.</span>
+                            <span>Permitir registro de usuários</span>
+                            <span className="font-normal text-xs text-muted-foreground">Permite criar contas novas. Desligue para manter privado.</span>
                         </Label>
                         <Switch
                             id="enable-registration"
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                     <div className="pt-2">
                         <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
                             {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                            Save Configuration
+                            Salvar
                         </Button>
                     </div>
                 </CardContent>
@@ -204,12 +204,12 @@ export default function SettingsPage() {
                                 const res = await fetch("/api/system/check-updates", { method: "POST" });
                                 const data = await res.json();
                                 if (data.status) {
-                                    toast.success(data.message || "Check complete!");
+                                    toast.success(data.message || "Verificação concluída!");
                                 } else {
-                                    toast.error(data.message || "Failed to check updates");
+                                    toast.error(data.message || "Falha ao verificar atualizações");
                                 }
                             } catch (e) {
-                                toast.error("Error checking updates");
+                                toast.error("Erro ao verificar atualizações");
                             } finally {
                                 setSystemLoading(false);
                             }
@@ -217,7 +217,7 @@ export default function SettingsPage() {
                         disabled={systemLoading}
                     >
                         <RefreshCw className={`mr-2 h-4 w-4 ${systemLoading ? 'animate-spin' : ''}`} />
-                        Check for Updates
+                        Verificar atualizações
                     </Button>
                 </CardContent>
             </Card>

@@ -14,8 +14,8 @@ export const contentType = "image/png";
 // Image generation
 export default async function Icon() {
     // Default config
-    let letter = "W";
-    let color = "#16a34a"; // green-600
+    let letter = "R";
+    let color = "#FE78AB"; // rosa
 
     try {
         // Fetch system config

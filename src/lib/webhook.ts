@@ -139,7 +139,7 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
 
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "RenewHub-Webhook/1.0"
     };
 
     // Add HMAC signature if secret is provided
@@ -278,7 +278,7 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
         sessionId: "test",
         timestamp: new Date().toISOString(),
         data: {
-            message: "This is a test webhook from WA-AKG",
+            message: "This is a test webhook from RenewHub",
             timestamp: new Date().toISOString()
         }
     };
@@ -286,7 +286,7 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     const body = JSON.stringify(testPayload, jsonReplacer);
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "RenewHub-Webhook/1.0"
     };
 
     if (secret) {

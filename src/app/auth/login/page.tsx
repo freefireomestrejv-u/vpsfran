@@ -20,8 +20,8 @@ import { Bot, ArrowRight, Loader2 } from "lucide-react";
 import Link from 'next/link';
 
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Digite um e-mail válido"),
+  password: z.string().min(1, "Senha é obrigatória"),
 });
 
 function LoginForm() {
@@ -50,13 +50,13 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        setError("E-mail ou senha inválidos");
       } else {
         window.location.href = callbackUrl;
         router.refresh();
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError("Ocorreu um erro inesperado");
     } finally {
       setLoading(false);
     }
@@ -70,11 +70,11 @@ function LoginForm() {
 
       <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="flex flex-col items-center mb-8">
-          <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-primary text-white shadow-lg shadow-primary/30">
+          <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FC90B4] to-primary text-white shadow-lg shadow-primary/30">
             <Bot className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
-          <p className="text-muted-foreground mt-2">Sign in to your WA-AKG account</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Bem-vindo de volta</h1>
+          <p className="text-muted-foreground mt-2">Entre na sua conta RenewHub</p>
         </div>
 
         <div className="glass-panel rounded-3xl p-8 shadow-2xl shadow-black/5 dark:shadow-black/40">
@@ -91,7 +91,7 @@ function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground/80">Email</FormLabel>
+                    <FormLabel className="text-foreground/80">E-mail</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="name@example.com"
@@ -108,7 +108,7 @@ function LoginForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground/80">Password</FormLabel>
+                    <FormLabel className="text-foreground/80">Senha</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
@@ -129,9 +129,9 @@ function LoginForm() {
                 disabled={loading}
               >
                 {loading ? (
-                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Authenticating...</>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Autenticando...</>
                 ) : (
-                  <>Sign In <ArrowRight className="ml-2 h-5 w-5" /></>
+                  <>Entrar <ArrowRight className="ml-2 h-5 w-5" /></>
                 )}
               </Button>
             </form>
@@ -139,9 +139,9 @@ function LoginForm() {
         </div>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Não tem conta?{" "}
           <Link href="/auth/register" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-            Create an account
+            Criar conta
           </Link>
         </div>
       </div>
