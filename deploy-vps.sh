@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # RenewHub — deploy na VPS (Ubuntu). Rode como root, uma vez.
-# Pré-requisitos: DNS apontando wa.renewveins.com para esta VPS.
+# Pré-requisitos: DNS apontando wa.reneewveins.com para esta VPS.
 # =============================================================================
 set -e
 
@@ -42,5 +42,5 @@ echo "[5/5] Status..."
 sleep 5
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 echo ""
-echo "Aguarde o HTTPS (1-2 min) e abra https://wa.renewveins.com"
+echo "Aguarde o HTTPS (1-2 min) e abra https://wa.reneewveins.com"
 echo "Logs do app: docker logs -f wa-akg-app"
