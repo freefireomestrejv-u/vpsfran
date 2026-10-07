@@ -166,6 +166,7 @@ export function MobileNav({ appName = "RenewHub" }: { appName?: string }) {
                     })}
                 </nav>
 
+                {!clientMode && (
                 <div className="p-4 border-t border-slate-100 bg-slate-50/50">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
@@ -189,6 +190,7 @@ export function MobileNav({ appName = "RenewHub" }: { appName?: string }) {
                     </Button>
                     <p className="text-[10px] text-slate-300 text-center mt-2 font-mono">v{pkg.version}</p>
                 </div>
+                )}
             </SheetContent>
         </Sheet>
     );

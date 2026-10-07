@@ -31,6 +31,8 @@ interface Notification {
 export function Navbar({ appName }: NavbarProps) {
     const router = useRouter();
     const { data: session } = useSession();
+    // Modo cliente (VPS): esconde relógio, sessão, sino e dados (só navegação mobile).
+    const clientMode = process.env.NEXT_PUBLIC_CLIENT_MODE === "true";
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -144,6 +146,8 @@ export function Navbar({ appName }: NavbarProps) {
                 <MobileNav appName={appName} />
             </div>
 
+            {!clientMode && (
+
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <span className="hidden sm:inline"><RealtimeClock /></span>
                 <SessionSelector />
@@ -231,6 +235,7 @@ export function Navbar({ appName }: NavbarProps) {
                     </PopoverContent>
                 </Popover>
             </div>
+            )}
         </header>
     );
 }

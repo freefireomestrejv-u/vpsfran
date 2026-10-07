@@ -15,6 +15,8 @@ interface SidebarShellProps {
 
 export function SidebarShell({ appName, userName, userEmail, version }: SidebarShellProps) {
     const { isCollapsed } = useSidebar();
+    // Modo cliente (VPS): esconde rodapé com dados do usuário, Sair e versão.
+    const clientMode = process.env.NEXT_PUBLIC_CLIENT_MODE === "true";
 
     return (
         <aside
@@ -47,7 +49,8 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
             {/* Navigation */}
             <SidebarNav />
 
-            {/* User Footer */}
+            {/* User Footer (oculto no modo cliente) */}
+            {!clientMode && (
             <div 
                 suppressHydrationWarning={true}
                 className={`border-t border-border/30 bg-background/40 transition-all duration-300 ${isCollapsed ? "p-2" : "p-4"}`}
@@ -90,6 +93,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
                     </>
                 )}
             </div>
+            )}
         </aside>
     );
 }
