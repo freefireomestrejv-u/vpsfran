@@ -58,3 +58,7 @@ WAAKG_SESSION_ID="PREENCHER_APOS_CONECTAR_SESSAO"
 NOME_MARCA="Equipe Renew Veins"
 WORKER_HORA_INICIO="8"
 WORKER_HORA_FIM="21"
+
+# Aba Recuperacao (textos + audios no Supabase). Mesmas chaves do worker local.
+SUPABASE_URL="https://wpoqhuguswqqldwluftv.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="COLAR_SERVICE_ROLE"

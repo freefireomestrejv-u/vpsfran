@@ -21,6 +21,7 @@ import {
     Code,
     UserCheck,
     Megaphone,
+    Heart,
     HardDrive,
     Activity,
     UserCircle,
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
     {
         label: "Automation",
         items: [
+            { href: "/dashboard/recuperacao", label: "Recuperação", icon: Heart },
             { href: "/dashboard/bot-settings", label: "Configurações do bot", icon: Bot },
             { href: "/dashboard/autoreply", label: "Resposta automática", icon: MessageCircleReply },
             { href: "/dashboard/profile", label: "Perfil do bot", icon: UserCircle },

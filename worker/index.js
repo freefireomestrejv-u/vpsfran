@@ -30,6 +30,37 @@ function horaBrasilia() {
   return Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
 }
 
+// Templates editáveis na aba Recuperação (cache de 60s; cai para o padrão se falhar)
+let tplCache = { quando: 0, dados: {} };
+async function carregarTemplates() {
+  if (Date.now() - tplCache.quando < 60_000) return tplCache.dados;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=etapa,texto,audio_url`, {
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+    });
+    const rows = await r.json();
+    const dados = {};
+    for (const t of rows || []) dados[t.etapa] = t;
+    tplCache = { quando: Date.now(), dados };
+  } catch (e) {
+    log("Aviso: usando textos padrão (templates).");
+  }
+  return tplCache.dados;
+}
+
+function render(template, l) {
+  const primeiro = (l.nome ?? "").trim().split(" ")[0] || "tudo bem";
+  const valor = l.valor ? ` (R$ ${Number(l.valor).toFixed(2).replace(".", ",")})` : "";
+  const produto = l.produto ? ` de ${l.produto}` : "";
+  return String(template)
+    .replaceAll("{nome}", primeiro)
+    .replaceAll("{produto}", produto)
+    .replaceAll("{valor}", valor)
+    .replaceAll("{codigo}", l.codigo_pix || "")
+    .replaceAll("{link}", l.link_retomada || "")
+    .replaceAll("{marca}", NOME_MARCA);
+}
+
 async function sessaoConectada() {
   try {
     const r = await fetch(`${WAAKG_URL}/api/sessions/${WAAKG_SESSION_ID}`, { headers: { "X-API-Key": WAAKG_API_KEY } });
@@ -40,25 +71,56 @@ async function sessaoConectada() {
   }
 }
 
-function montarMensagem(l) {
-  const primeiro = (l.nome ?? "").trim().split(" ")[0] || "tudo bem";
-  const valor = l.valor ? ` (R$ ${Number(l.valor).toFixed(2).replace(".", ",")})` : "";
-  const produto = l.produto ? ` ${l.produto}` : "";
-  // 1ª mensagem: boas-vindas na hora em que o Pix é gerado
-  if (String(l.pedido_id).endsWith("#boasvindas")) {
-    return [
-      `Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`,
-      `Vi que você gerou o QR Code${produto}${valor}. Fico muito feliz que confiou no nosso trabalho!`,
-      "Qualquer dúvida, estou por aqui à disposição. Assim que o pagamento for confirmado, te aviso.",
-    ].join("\n\n");
+function montarMensagem(l, tpls = {}) {
+  const ehBoasvindas = String(l.pedido_id).endsWith("#boasvindas");
+  const etapa = ehBoasvindas ? "boasvindas" : "cobranca";
+  const tpl = tpls[etapa]?.texto;
+  const audioUrl = tpls[etapa]?.audio_url || null;
+
+  // Sem template salvo: comportamento padrão de antes
+  if (!tpl) {
+    const primeiro = (l.nome ?? "").trim().split(" ")[0] || "tudo bem";
+    const valor = l.valor ? ` (R$ ${Number(l.valor).toFixed(2).replace(".", ",")})` : "";
+    const produto = l.produto ? ` ${l.produto}` : "";
+    if (ehBoasvindas) {
+      return { partes: [
+        `Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`,
+        `Vi que você gerou o QR Code${produto}${valor}. Fico muito feliz que confiou no nosso trabalho!`,
+        "Qualquer dúvida, estou por aqui à disposição. Assim que o pagamento for confirmado, te aviso.",
+      ].join("\n\n"), audioUrl };
+    }
+    const corpo = [`Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`, `Vi que você gerou o Pix${produto ? ` de${produto}` : ""}${valor}, mas o pagamento ainda não caiu.`];
+    if (l.codigo_pix) corpo.push("Se ainda quiser, segue o Pix Copia e Cola:");
+    else if (l.link_retomada) corpo.push(`Você pode finalizar por aqui: ${l.link_retomada}`);
+    corpo.push("Se já pagou, pode ignorar esta mensagem. Para não receber mais avisos, responda SAIR.");
+    const partes = [corpo.join("\n\n")];
+    if (l.codigo_pix && !partes[0].includes(l.codigo_pix)) partes.push(l.codigo_pix);
+    return { partes, audioUrl };
   }
-  // 2ª mensagem: cobrança após 15 min sem pagamento (texto + código em seguida)
-  const corpo = [`Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`, `Vi que você gerou o Pix${produto ? ` de${produto}` : ""}${valor}, mas o pagamento ainda não caiu.`];
-  if (l.codigo_pix) corpo.push("Se ainda quiser, segue o Pix Copia e Cola:");
-  else if (l.link_retomada) corpo.push(`Você pode finalizar por aqui: ${l.link_retomada}`);
-  corpo.push("Se já pagou, pode ignorar esta mensagem. Para não receber mais avisos, responda SAIR.");
-  if (l.codigo_pix) return [corpo.join("\n\n"), l.codigo_pix];
-  return corpo.join("\n\n");
+
+  // Com template: renderiza variáveis; código Pix vai separado (salvo se já estiver no texto)
+  const texto = render(tpl, l);
+  const partes = [texto];
+  if (!ehBoasvindas && l.codigo_pix && !texto.includes(l.codigo_pix)) partes.push(l.codigo_pix);
+  return { partes, audioUrl };
+}
+
+async function enviarAudio(telefone, audioUrl) {
+  const r = await fetch(audioUrl);
+  if (!r.ok) throw new Error(`Áudio HTTP ${r.status}`);
+  const buf = Buffer.from(await r.arrayBuffer());
+  const fd = new FormData();
+  fd.append("file", new Blob([buf], { type: "audio/ogg" }), "audio.ogg");
+  fd.append("type", "voice");
+  const jid = encodeURIComponent(`${telefone}@s.whatsapp.net`);
+  const s = await fetch(`${WAAKG_URL}/api/messages/${WAAKG_SESSION_ID}/${jid}/media`, {
+    method: "POST",
+    headers: { "X-API-Key": WAAKG_API_KEY },
+    body: fd,
+  });
+  const j = await s.json().catch(() => ({}));
+  if (!s.ok || j.status !== true) throw new Error(j.message || j.error || `HTTP ${s.status}`);
+  return j?.data?.key?.id ?? j?.data?.id ?? null;
 }
 
 async function enviar(telefone, texto) {
@@ -104,13 +166,22 @@ async function ciclo() {
       const { data: atual } = await supabase.from("lembretes").select("status").eq("id", l.id).single();
       if (atual?.status === "pago") continue;
 
-      const textos = montarMensagem(l);
-      const partes = Array.isArray(textos) ? textos : [textos];
+      const tpls = await carregarTemplates();
+      const { partes, audioUrl } = montarMensagem(l, tpls);
       let msgId = null;
       for (const [i, texto] of partes.entries()) {
         const id = await enviar(l.telefone, texto);
         if (i === 0) msgId = id;
-        if (i < partes.length - 1) await sleep(2000); // pequena pausa entre as partes
+        await sleep(2000); // pequena pausa entre as partes
+      }
+      if (audioUrl) {
+        try {
+          await enviarAudio(l.telefone, audioUrl);
+          log(`🎙️ Áudio enviado (pedido ${l.pedido_id})`);
+        } catch (e) {
+          log(`⚠️ Falha no áudio (pedido ${l.pedido_id}): ${e.message}`);
+        }
+        await sleep(2000);
       }
       await atualizar(l.id, { status: "enviado", whatsapp_msg_id: msgId, erro: null });
       log(`✅ Enviado (pedido ${l.pedido_id})`);
