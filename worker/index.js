@@ -102,7 +102,7 @@ function montarMensagem(l, tpls = {}) {
     const primeiro = (l.nome ?? "").trim().split(" ")[0] || "tudo bem";
     const valor = l.valor ? ` (R$ ${Number(l.valor).toFixed(2).replace(".", ",")})` : "";
     const produto = l.produto ? ` ${l.produto}` : "";
-    if (ehBoasvindas) {
+    if (etapa === "boasvindas") {
       return { partes: [
         `Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`,
         `Vi que você gerou o QR Code${produto}${valor}. Fico muito feliz que confiou no nosso trabalho!`,
