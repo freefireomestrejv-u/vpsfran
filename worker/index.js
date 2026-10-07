@@ -35,7 +35,7 @@ let tplCache = { quando: 0, dados: {} };
 async function carregarTemplates() {
   if (Date.now() - tplCache.quando < 60_000) return tplCache.dados;
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=etapa,texto,audio_url`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,blocos`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
     });
     const rows = await r.json();
