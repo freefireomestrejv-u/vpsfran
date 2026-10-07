@@ -71,9 +71,16 @@ async function sessaoConectada() {
   }
 }
 
+function etapaDe(l) {
+  const id = String(l.pedido_id);
+  if (id.endsWith("#boasvindas")) return "boasvindas";
+  if (id.startsWith("abandono:")) return "abandono";
+  return "cobranca";
+}
+
 function montarMensagem(l, tpls = {}) {
-  const ehBoasvindas = String(l.pedido_id).endsWith("#boasvindas");
-  const etapa = ehBoasvindas ? "boasvindas" : "cobranca";
+  const etapa = etapaDe(l);
+  const ehBoasvindas = etapa === "boasvindas";
   const tpl = tpls[etapa]?.texto;
   const audioUrl = tpls[etapa]?.audio_url || null;
 

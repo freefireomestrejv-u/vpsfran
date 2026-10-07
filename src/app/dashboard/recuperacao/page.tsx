@@ -18,6 +18,12 @@ interface Template {
 
 const VARS = ["{nome}", "{produto}", "{valor}", "{codigo}", "{link}", "{marca}"];
 
+const ETAPAS: Record<string, { titulo: string; desc: string }> = {
+    boasvindas: { titulo: "Boas-vindas (na hora)", desc: "Enviada ~10s após gerar o Pix." },
+    cobranca: { titulo: "Cobrança (após a espera)", desc: "Enviada após o tempo de espera, só se não pagou." },
+    abandono: { titulo: "Abandono (sem Pix)", desc: "Enviada após a espera quando o checkout não virou Pix." },
+};
+
 function Bloco({ titulo, desc, tpl, salvando, onTexto, onSalvar, onAudio, onRemoverAudio }: {
     titulo: string; desc: string; tpl: Template;
     salvando: boolean; onTexto: (v: string) => void; onSalvar: () => void;
@@ -150,11 +156,11 @@ export default function RecuperacaoPage() {
                     <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Recuperação de carrinho</h2>
                     <p className="text-muted-foreground text-sm mt-1">Textos e áudios que o worker envia. Vale na hora para as próximas vendas.</p>
                 </div>
-                {(["boasvindas", "cobranca"] as const).map((etapa) => (
+                {Object.keys(ETAPAS).filter((e) => tpls[e]).map((etapa) => (
                     <Bloco
                         key={etapa}
-                        titulo={etapa === "boasvindas" ? "Boas-vindas (na hora)" : "Cobrança (após a espera)"}
-                        desc={etapa === "boasvindas" ? "Enviada ~10s após gerar o Pix." : "Enviada após o tempo de espera, só se não pagou."}
+                        titulo={ETAPAS[etapa].titulo}
+                        desc={ETAPAS[etapa].desc}
                         tpl={tpls[etapa] || { etapa, texto: "", audio_url: null }}
                         salvando={salvando === etapa}
                         onTexto={(v) => setTpls((p) => ({ ...p, [etapa]: { ...(p[etapa] || { etapa, texto: "", audio_url: null }), texto: v } }))}

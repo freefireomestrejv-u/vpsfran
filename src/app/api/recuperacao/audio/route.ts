@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         const form = await request.formData();
         const etapa = String(form.get("etapa") || "");
         const file = form.get("file") as File | null;
-        if ((etapa !== "boasvindas" && etapa !== "cobranca") || !file) {
+        if (!["boasvindas", "cobranca", "abandono"].includes(etapa) || !file) {
             return NextResponse.json({ status: false, message: "etapa e file são obrigatórios", error: "etapa e file são obrigatórios" }, { status: 400 });
         }
         const buf = Buffer.from(await file.arrayBuffer());
@@ -61,7 +61,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Supabase não configurado", error: "Supabase não configurado" }, { status: 500 });
         }
         const etapa = new URL(request.url).searchParams.get("etapa") || "";
-        if (etapa !== "boasvindas" && etapa !== "cobranca") {
+        if (!["boasvindas", "cobranca", "abandono"].includes(etapa)) {
             return NextResponse.json({ status: false, message: "etapa inválida", error: "etapa inválida" }, { status: 400 });
         }
         await fetch(`${cfg.url}/storage/v1/object/audios/${etapa}.ogg`, {
