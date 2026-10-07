@@ -2,6 +2,9 @@ FROM node:26-alpine AS builder
 RUN apk add --no-cache openssl ca-certificates
 WORKDIR /app
 
+# Build-time public vars (baked into the client bundle)
+ARG NEXT_PUBLIC_CLIENT_MODE=false
+
 # Dependency layer — cache-friendly: only rerun when package*.json changes
 COPY package*.json ./
 COPY patches ./patches/

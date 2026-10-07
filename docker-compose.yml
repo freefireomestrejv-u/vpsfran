@@ -22,6 +22,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLIENT_MODE: ${NEXT_PUBLIC_CLIENT_MODE:-false}
     container_name: wa-akg-app
     restart: always
     ports:
