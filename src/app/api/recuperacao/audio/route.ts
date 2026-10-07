@@ -21,12 +21,14 @@ export async function POST(request: NextRequest) {
         }
         const form = await request.formData();
         const etapa = String(form.get("etapa") || "");
+        const nome = String(form.get("nome") || "").replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 40);
         const file = form.get("file") as File | null;
         if (!["boasvindas", "cobranca", "abandono", "cartao"].includes(etapa) || !file) {
             return NextResponse.json({ status: false, message: "etapa e file são obrigatórios", error: "etapa e file são obrigatórios" }, { status: 400 });
         }
         const buf = Buffer.from(await file.arrayBuffer());
-        const up = await fetch(`${cfg.url}/storage/v1/object/audios/${etapa}.ogg`, {
+        const arquivo = `${nome || etapa}.ogg`;
+        const up = await fetch(`${cfg.url}/storage/v1/object/audios/${arquivo}`, {
             method: "POST",
             headers: {
                 apikey: cfg.key,
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
             body: buf,
         });
         if (!up.ok) throw new Error(`Upload: HTTP ${up.status}`);
-        const publicUrl = `${cfg.url}/storage/v1/object/public/audios/${etapa}.ogg`;
+        const publicUrl = `${cfg.url}/storage/v1/object/public/audios/${arquivo}`;
         await fetch(`${cfg.url}/rest/v1/templates_recuperacao?etapa=eq.${etapa}`, {
             method: "PATCH",
             headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, "Content-Type": "application/json" },

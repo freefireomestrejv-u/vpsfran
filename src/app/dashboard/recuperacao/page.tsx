@@ -1,22 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Save, Trash2, Upload, Volume2 } from "lucide-react";
+import { RefreshCw, Save, Trash2, Volume2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
+
+interface Bloco {
+    id: string;
+    tipo: "texto" | "audio" | "codigo";
+    texto?: string;
+    audio_url?: string | null;
+}
 
 interface Template {
     etapa: string;
     texto: string;
     audio_url: string | null;
+    blocos?: Bloco[] | null;
 }
 
-const VARS = ["{nome}", "{produto}", "{valor}", "{codigo}", "{link}", "{marca}"];
+const VARS = [
+    { v: "{nome}", d: "primeiro nome" },
+    { v: "{produto}", d: "ex. de Renew Veins" },
+    { v: "{valor}", d: "ex. (R$ 319,00)" },
+    { v: "{codigo}", d: "Pix copia e cola" },
+    { v: "{link}", d: "link do checkout" },
+    { v: "{marca}", d: "nome da loja" },
+];
 
 const ETAPAS: Record<string, { titulo: string; desc: string }> = {
     boasvindas: { titulo: "Boas-vindas (na hora)", desc: "Enviada ~10s após gerar o Pix." },
@@ -25,64 +40,89 @@ const ETAPAS: Record<string, { titulo: string; desc: string }> = {
     cartao: { titulo: "Cartão recusado", desc: "Enviada após a espera quando o cartão não passa." },
 };
 
-function Bloco({ titulo, desc, tpl, salvando, onTexto, onSalvar, onAudio, onRemoverAudio }: {
-    titulo: string; desc: string; tpl: Template;
-    salvando: boolean; onTexto: (v: string) => void; onSalvar: () => void;
-    onAudio: (f: File) => void; onRemoverAudio: () => void;
-}) {
+const nid = () => Math.random().toString(36).slice(2, 9);
+
+function blocosIniciais(t: Template, etapa: string): Bloco[] {
+    if (Array.isArray(t.blocos) && t.blocos.length) return t.blocos;
+    const out: Bloco[] = [];
+    if (t.texto) out.push({ id: nid(), tipo: "texto", texto: t.texto });
+    if (t.audio_url) out.push({ id: nid(), tipo: "audio", audio_url: t.audio_url });
+    if (etapa === "cobranca") out.push({ id: nid(), tipo: "codigo" });
+    return out.length ? out : [{ id: nid(), tipo: "texto", texto: "" }];
+}
+
+function AreaTexto({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const ref = useRef<HTMLTextAreaElement>(null);
+    const [busca, setBusca] = useState<string | null>(null);
+
+    const aoDigitar = (v: string) => {
+        onChange(v);
+        const el = ref.current;
+        if (!el) { setBusca(null); return; }
+        const pos = el.selectionStart || 0;
+        const antes = v.slice(0, pos);
+        const m = antes.match(/@(\w*)$/);
+        setBusca(m ? m[1].toLowerCase() : null);
+    };
+
+    const inserir = (variavel: string) => {
+        const el = ref.current;
+        if (!el) { onChange(value + variavel); return; }
+        const pos = el.selectionStart || 0;
+        const antes = value.slice(0, pos).replace(/@\w*$/, "");
+        const depois = value.slice(pos);
+        const novo = antes + variavel + depois;
+        onChange(novo);
+        setBusca(null);
+        requestAnimationFrame(() => {
+            el.focus();
+            const p = antes.length + variavel.length;
+            el.setSelectionRange(p, p);
+        });
+    };
+
+    const opcoes = busca === null ? [] : VARS.filter((x) => x.v.toLowerCase().includes(busca));
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Volume2 className="h-5 w-5 text-primary" /> {titulo}
-                </CardTitle>
-                <CardDescription>{desc}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label>Texto da mensagem</Label>
-                    <Textarea
-                        value={tpl.texto}
-                        onChange={(e) => onTexto(e.target.value)}
-                        className="min-h-[220px] font-mono text-sm"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        Variáveis: {VARS.map(v => <code key={v} className="bg-muted px-1 rounded mr-1">{v}</code>)}
-                    </p>
+        <div className="relative">
+            <Textarea
+                ref={ref}
+                value={value}
+                onChange={(e) => aoDigitar(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && busca !== null && opcoes.length > 0) {
+                        e.preventDefault();
+                        inserir(opcoes[0].v);
+                    }
+                    if (e.key === "Escape") setBusca(null);
+                }}
+                onBlur={() => setTimeout(() => setBusca(null), 150)}
+                className="min-h-[140px] font-mono text-sm"
+                placeholder="Digite @ para variáveis..."
+            />
+            {busca !== null && opcoes.length > 0 && (
+                <div className="absolute z-20 left-0 right-0 sm:right-auto sm:w-72 mt-1 rounded-lg border bg-popover shadow-xl p-1">
+                    {opcoes.map((o) => (
+                        <button
+                            key={o.v}
+                            onMouseDown={(e) => { e.preventDefault(); inserir(o.v); }}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-sm hover:bg-muted text-left"
+                        >
+                            <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs text-primary">{o.v}</code>
+                            <span className="text-xs text-muted-foreground">{o.d}</span>
+                        </button>
+                    ))}
                 </div>
-                <div className="space-y-2 border-t border-border/50 pt-4">
-                    <Label>Áudio fixo (nota de voz)</Label>
-                    {tpl.audio_url ? (
-                        <div className="flex items-center gap-2">
-                            <audio src={tpl.audio_url} controls className="h-9 flex-1" preload="none" />
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={onRemoverAudio} title="Remover áudio">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ) : (
-                        <p className="text-xs text-muted-foreground">Sem áudio — só o texto será enviado.</p>
-                    )}
-                    <div className="flex items-center gap-2">
-                        <Input
-                            type="file" accept="audio/*"
-                            onChange={(e) => { const f = e.target.files?.[0]; if (f) onAudio(f); e.target.value = ""; }}
-                        />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Envie .ogg ou .mp3 (ideal: OGG). Vira nota de voz no WhatsApp.</p>
-                </div>
-                <Button onClick={onSalvar} disabled={salvando} className="w-full sm:w-auto">
-                    {salvando ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Salvar {titulo.toLowerCase()}
-                </Button>
-            </CardContent>
-        </Card>
+            )}
+        </div>
     );
 }
 
 export default function RecuperacaoPage() {
     const [tpls, setTpls] = useState<Record<string, Template>>({});
+    const [blocos, setBlocos] = useState<Record<string, Bloco[]>>({});
     const [loading, setLoading] = useState(true);
     const [salvando, setSalvando] = useState<string | null>(null);
+    const [subindo, setSubindo] = useState<string | null>(null);
 
     const carregar = async () => {
         setLoading(true);
@@ -91,8 +131,13 @@ export default function RecuperacaoPage() {
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || "Falha ao carregar");
             const map: Record<string, Template> = {};
-            for (const t of (j.data || [])) map[t.etapa] = t;
+            const bl: Record<string, Bloco[]> = {};
+            for (const t of (j.data || [])) {
+                map[t.etapa] = t;
+                bl[t.etapa] = blocosIniciais(t, t.etapa);
+            }
             setTpls(map);
+            setBlocos(bl);
         } catch (e: any) {
             toast.error(e.message);
         } finally {
@@ -102,17 +147,37 @@ export default function RecuperacaoPage() {
 
     useEffect(() => { carregar(); }, []);
 
-    const salvarTexto = async (etapa: string) => {
+    const setBloco = (etapa: string, fn: (b: Bloco[]) => Bloco[]) =>
+        setBlocos((p) => ({ ...p, [etapa]: fn(p[etapa] || []) }));
+
+    const mover = (etapa: string, i: number, dir: -1 | 1) =>
+        setBloco(etapa, (b) => {
+            const j = i + dir;
+            if (j < 0 || j >= b.length) return b;
+            const c = [...b];
+            [c[i], c[j]] = [c[j], c[i]];
+            return c;
+        });
+
+    const salvar = async (etapa: string) => {
         setSalvando(etapa);
         try {
+            const lista = blocos[etapa] || [];
+            const textos = lista.filter((b) => b.tipo === "texto").map((b) => b.texto || "").filter(Boolean);
+            const primeiroAudio = lista.find((b) => b.tipo === "audio" && b.audio_url);
             const res = await fetch("/api/recuperacao/templates", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ etapa, texto: tpls[etapa]?.texto ?? "" }),
+                body: JSON.stringify({
+                    etapa,
+                    texto: textos.join("\n\n"),
+                    audio_url: primeiroAudio?.audio_url || null,
+                    blocos: lista,
+                }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || "Falha ao salvar");
-            toast.success("Texto salvo! O worker usa na próxima venda.");
+            toast.success("Salvo! Vale para as próximas vendas.");
         } catch (e: any) {
             toast.error(e.message);
         } finally {
@@ -120,31 +185,22 @@ export default function RecuperacaoPage() {
         }
     };
 
-    const subirAudio = async (etapa: string, file: File) => {
+    const subirAudio = async (etapa: string, id: string, file: File) => {
         const fd = new FormData();
         fd.append("etapa", etapa);
+        fd.append("nome", `${etapa}-${id}`);
         fd.append("file", file);
+        setSubindo(id);
         try {
-            toast.info(`Subindo áudio de ${etapa}...`);
             const res = await fetch("/api/recuperacao/audio", { method: "POST", body: fd });
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || "Falha no upload");
-            setTpls((p) => ({ ...p, [etapa]: { ...p[etapa], audio_url: j.data.audio_url } }));
-            toast.success("Áudio salvo!");
+            setBloco(etapa, (b) => b.map((x) => (x.id === id ? { ...x, audio_url: j.data.audio_url } : x)));
+            toast.success("Áudio salvo no bloco!");
         } catch (e: any) {
             toast.error(e.message);
-        }
-    };
-
-    const removerAudio = async (etapa: string) => {
-        try {
-            const res = await fetch(`/api/recuperacao/audio?etapa=${etapa}`, { method: "DELETE" });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j.message || "Falha ao remover");
-            setTpls((p) => ({ ...p, [etapa]: { ...p[etapa], audio_url: null } }));
-            toast.success("Áudio removido.");
-        } catch (e: any) {
-            toast.error(e.message);
+        } finally {
+            setSubindo(null);
         }
     };
 
@@ -155,27 +211,84 @@ export default function RecuperacaoPage() {
             <div className="space-y-6 max-w-4xl">
                 <div>
                     <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Recuperação de carrinho</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Textos e áudios que o worker envia. Vale na hora para as próximas vendas.</p>
+                    <p className="text-muted-foreground text-sm mt-1">Monte a sequência de cada etapa. Vale na hora para as próximas vendas.</p>
                 </div>
                 {Object.keys(ETAPAS).filter((e) => tpls[e]).map((etapa) => (
-                    <Bloco
-                        key={etapa}
-                        titulo={ETAPAS[etapa].titulo}
-                        desc={ETAPAS[etapa].desc}
-                        tpl={tpls[etapa] || { etapa, texto: "", audio_url: null }}
-                        salvando={salvando === etapa}
-                        onTexto={(v) => setTpls((p) => ({ ...p, [etapa]: { ...(p[etapa] || { etapa, texto: "", audio_url: null }), texto: v } }))}
-                        onSalvar={() => salvarTexto(etapa)}
-                        onAudio={(f) => subirAudio(etapa, f)}
-                        onRemoverAudio={() => removerAudio(etapa)}
-                    />
+                    <Card key={etapa}>
+                        <CardHeader>
+                            <CardTitle>{ETAPAS[etapa].titulo}</CardTitle>
+                            <CardDescription>{ETAPAS[etapa].desc}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {(blocos[etapa] || []).map((b, i, arr) => (
+                                <div key={b.id} className="rounded-lg border p-3 space-y-2 bg-muted/20">
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-bold text-muted-foreground mr-1 flex items-center gap-1">
+                                            {b.tipo === "texto" ? <><Type className="h-3 w-3" /> Texto {i + 1}</> : b.tipo === "audio" ? <><Music4 className="h-3 w-3" /> Áudio {i + 1}</> : <><Hash className="h-3 w-3" /> Código Pix</>}
+                                        </span>
+                                        <span className="flex-1" />
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={i === 0} onClick={() => mover(etapa, i, -1)} title="Subir">
+                                            <ArrowUp className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={i === arr.length - 1} onClick={() => mover(etapa, i, 1)} title="Descer">
+                                            <ArrowDown className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setBloco(etapa, (x) => x.filter((y) => y.id !== b.id))} title="Remover">
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                    {b.tipo === "texto" && (
+                                        <AreaTexto
+                                            value={b.texto || ""}
+                                            onChange={(v) => setBloco(etapa, (x) => x.map((y) => (y.id === b.id ? { ...y, texto: v } : y)))}
+                                        />
+                                    )}
+                                    {b.tipo === "audio" && (
+                                        <div className="space-y-2">
+                                            {b.audio_url ? (
+                                                <div className="flex items-center gap-2">
+                                                    <audio src={b.audio_url} controls className="h-9 flex-1" preload="none" />
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setBloco(etapa, (x) => x.map((y) => (y.id === b.id ? { ...y, audio_url: null } : y)))} title="Remover áudio">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Label className="flex items-center gap-2 text-xs text-muted-foreground border border-dashed rounded-lg p-3 cursor-pointer">
+                                                    <Upload className="h-4 w-4" />
+                                                    {subindo === b.id ? "Subindo..." : "Clique para subir o áudio (.ogg/.mp3)"}
+                                                    <Input
+                                                        type="file" accept="audio/*" className="hidden"
+                                                        disabled={subindo === b.id}
+                                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAudio(etapa, b.id, f); e.target.value = ""; }}
+                                                    />
+                                                </Label>
+                                            )}
+                                        </div>
+                                    )}
+                                    {b.tipo === "codigo" && (
+                                        <p className="text-xs text-muted-foreground">Envia o código Pix copia e cola (só quando existir; na cobrança).</p>
+                                    )}
+                                </div>
+                            ))}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                <Button variant="outline" size="sm" onClick={() => setBloco(etapa, (b) => [...b, { id: nid(), tipo: "texto", texto: "" }])}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Texto
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setBloco(etapa, (b) => [...b, { id: nid(), tipo: "audio", audio_url: null }])}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Áudio
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setBloco(etapa, (b) => [...b, { id: nid(), tipo: "codigo" }])}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Código Pix
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Digite <code className="bg-muted px-1 rounded">@</code> no texto para variáveis.</p>
+                            <Button onClick={() => salvar(etapa)} disabled={salvando === etapa}>
+                                {salvando === etapa ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                                Salvar {ETAPAS[etapa].titulo.toLowerCase()}
+                            </Button>
+                        </CardContent>
+                    </Card>
                 ))}
-                <Card className="border-primary/20 bg-primary/5">
-                    <CardContent className="pt-4 text-xs text-muted-foreground space-y-1">
-                        <p><Upload className="h-3 w-3 inline mr-1" /> O áudio sai como <strong>nota de voz</strong> logo após o texto (na cobrança, antes do código Pix).</p>
-                        <p>Sem áudio cadastrado, só o texto é enviado — nada quebra.</p>
-                    </CardContent>
-                </Card>
             </div>
         </SessionGuard>
     );

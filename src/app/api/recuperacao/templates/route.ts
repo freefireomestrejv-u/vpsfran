@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         if (!user) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
-        const res = await sbFetch("/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,atualizado_em");
+        const res = await sbFetch("/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,blocos,atualizado_em");
         if (!res) {
             return NextResponse.json({ status: false, message: "Supabase não configurado (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)", error: "Supabase não configurado" }, { status: 500 });
         }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// PUT: salva o texto de uma etapa { etapa: "boasvindas" | "cobranca", texto }
+// PUT: salva etapa { etapa, texto?, audio_url?, blocos? } (só SUPERADMIN)
 export async function PUT(request: NextRequest) {
     try {
         const user = await getAuthenticatedUser(request);
@@ -50,14 +50,21 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
         }
         const body = await request.json();
-        const { etapa, texto } = body;
+        const { etapa, texto, audio_url, blocos } = body;
         if (!["boasvindas", "cobranca", "abandono", "cartao"].includes(etapa)) {
             return NextResponse.json({ status: false, message: "etapa inválida", error: "etapa inválida" }, { status: 400 });
         }
+        if (blocos !== undefined && !Array.isArray(blocos)) {
+            return NextResponse.json({ status: false, message: "blocos deve ser array", error: "blocos deve ser array" }, { status: 400 });
+        }
+        const patch: any = { etapa, atualizado_em: new Date().toISOString() };
+        if (texto !== undefined) patch.texto = texto;
+        if (audio_url !== undefined) patch.audio_url = audio_url;
+        if (blocos !== undefined) patch.blocos = blocos;
         const res = await sbFetch("/rest/v1/templates_recuperacao?on_conflict=etapa", {
             method: "POST",
             headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-            body: JSON.stringify({ etapa, texto: texto ?? "", atualizado_em: new Date().toISOString() }),
+            body: JSON.stringify(patch),
         });
         if (!res) {
             return NextResponse.json({ status: false, message: "Supabase não configurado", error: "Supabase não configurado" }, { status: 500 });

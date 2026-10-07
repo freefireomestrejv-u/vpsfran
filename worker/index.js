@@ -81,9 +81,21 @@ function etapaDe(l) {
 
 function montarMensagem(l, tpls = {}) {
   const etapa = etapaDe(l);
-  const ehBoasvindas = etapa === "boasvindas";
-  const tpl = tpls[etapa]?.texto;
-  const audioUrl = tpls[etapa]?.audio_url || null;
+  const t = tpls[etapa] || {};
+
+  // Modelo novo: sequência de blocos [{tipo: texto|audio|codigo}]
+  if (Array.isArray(t.blocos) && t.blocos.length) {
+    const partes = [];
+    for (const b of t.blocos) {
+      if (b.tipo === "texto" && b.texto) partes.push({ kind: "texto", texto: render(b.texto, l) });
+      else if (b.tipo === "codigo" && l.codigo_pix) partes.push({ kind: "texto", texto: l.codigo_pix });
+      else if (b.tipo === "audio" && b.audio_url) partes.push({ kind: "audio", url: b.audio_url });
+    }
+    return { partes, sequencia: true };
+  }
+
+  const tpl = t.texto;
+  const audioUrl = t.audio_url || null;
 
   // Sem template salvo: comportamento padrão de antes
   if (!tpl) {
@@ -175,21 +187,40 @@ async function ciclo() {
       if (atual?.status === "pago") continue;
 
       const tpls = await carregarTemplates();
-      const { partes, audioUrl } = montarMensagem(l, tpls);
+      const m = montarMensagem(l, tpls);
       let msgId = null;
-      for (const [i, texto] of partes.entries()) {
-        const id = await enviar(l.telefone, texto);
-        if (i === 0) msgId = id;
-        await sleep(2000); // pequena pausa entre as partes
-      }
-      if (audioUrl) {
-        try {
-          await enviarAudio(l.telefone, audioUrl);
-          log(`🎙️ Áudio enviado (pedido ${l.pedido_id})`);
-        } catch (e) {
-          log(`⚠️ Falha no áudio (pedido ${l.pedido_id}): ${e.message}`);
+      if (m.sequencia) {
+        // Modelo novo: cada bloco na ordem definida na aba
+        for (const p of m.partes) {
+          try {
+            if (p.kind === "texto") {
+              const id = await enviar(l.telefone, p.texto);
+              if (!msgId) msgId = id;
+            } else if (p.kind === "audio") {
+              await enviarAudio(l.telefone, p.url);
+              log(`🎙️ Áudio enviado (pedido ${l.pedido_id})`);
+            }
+          } catch (e) {
+            log(`⚠️ Falha numa parte (pedido ${l.pedido_id}): ${e.message}`);
+          }
+          await sleep(2000); // pequena pausa entre as partes
         }
-        await sleep(2000);
+      } else {
+        const { partes, audioUrl } = m;
+        for (const [i, texto] of partes.entries()) {
+          const id = await enviar(l.telefone, texto);
+          if (i === 0) msgId = id;
+          await sleep(2000); // pequena pausa entre as partes
+        }
+        if (audioUrl) {
+          try {
+            await enviarAudio(l.telefone, audioUrl);
+            log(`🎙️ Áudio enviado (pedido ${l.pedido_id})`);
+          } catch (e) {
+            log(`⚠️ Falha no áudio (pedido ${l.pedido_id}): ${e.message}`);
+          }
+          await sleep(2000);
+        }
       }
       await atualizar(l.id, { status: "enviado", whatsapp_msg_id: msgId, erro: null });
       log(`✅ Enviado (pedido ${l.pedido_id})`);
