@@ -121,7 +121,7 @@ function montarMensagem(l, tpls = {}) {
   // Com template: renderiza variáveis; código Pix vai separado (salvo se já estiver no texto)
   const texto = render(tpl, l);
   const partes = [texto];
-  if (!ehBoasvindas && l.codigo_pix && !texto.includes(l.codigo_pix)) partes.push(l.codigo_pix);
+  if (etapa !== "boasvindas" && l.codigo_pix && !texto.includes(l.codigo_pix)) partes.push(l.codigo_pix);
   return { partes, audioUrl };
 }
 
