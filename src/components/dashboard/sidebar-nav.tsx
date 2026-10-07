@@ -133,7 +133,7 @@ export function SidebarNav() {
             <nav className="flex-1 px-2 py-2 overflow-y-auto overflow-x-hidden space-y-0.5 styled-scrollbar">
                 {navGroups.map((group) => {
                     const visibleItems = group.items.filter((item) => {
-                        if (clientMode && item.href !== "/dashboard/chat") return false;
+                        if (clientMode && item.href !== "/dashboard/chat" && !(item.href === "/dashboard/recuperacao" && userRole === "SUPERADMIN")) return false;
                         if (item.superadminOnly && userRole !== "SUPERADMIN") return false;
                         if (item.allowedRoles && (!userRole || !item.allowedRoles.includes(userRole))) return false;
                         return true;
