@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Save, Trash2, Volume2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload } from "lucide-react";
+import { RefreshCw, Save, Trash2, Volume2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload, History, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 
@@ -118,11 +119,13 @@ function AreaTexto({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 export default function RecuperacaoPage() {
+    const router = useRouter();
     const [tpls, setTpls] = useState<Record<string, Template>>({});
     const [blocos, setBlocos] = useState<Record<string, Bloco[]>>({});
     const [loading, setLoading] = useState(true);
     const [salvando, setSalvando] = useState<string | null>(null);
     const [subindo, setSubindo] = useState<string | null>(null);
+    const [historico, setHistorico] = useState<any[]>([]);
 
     const carregar = async () => {
         setLoading(true);
@@ -146,6 +149,18 @@ export default function RecuperacaoPage() {
     };
 
     useEffect(() => { carregar(); }, []);
+
+    const carregarHistorico = async () => {
+        try {
+            const res = await fetch("/api/recuperacao/historico?limit=50");
+            const j = await res.json();
+            if (res.ok) setHistorico(j.data || []);
+        } catch {
+            // silencioso: histórico é extra
+        }
+    };
+
+    useEffect(() => { carregarHistorico(); }, []);
 
     const setBloco = (etapa: string, fn: (b: Bloco[]) => Bloco[]) =>
         setBlocos((p) => ({ ...p, [etapa]: fn(p[etapa] || []) }));
@@ -289,6 +304,43 @@ export default function RecuperacaoPage() {
                         </CardContent>
                     </Card>
                 ))}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <History className="h-5 w-5 text-primary" /> Histórico de enviadas
+                        </CardTitle>
+                        <CardDescription>Clique para abrir a conversa com o que foi enviado.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {historico.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Nenhuma mensagem enviada ainda.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {historico.map((h: any) => (
+                                    <button
+                                        key={h.pedido_id}
+                                        onClick={() => h.telefone && router.push(`/dashboard/chat/${h.telefone}`)}
+                                        className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors text-left"
+                                    >
+                                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-primary/10 text-primary shrink-0">
+                                            {h.titulo}
+                                        </span>
+                                        <span className="flex-1 min-w-0">
+                                            <span className="block text-sm font-medium truncate">
+                                                {h.nome || h.telefone}
+                                                {h.produto ? ` • ${h.produto}` : ""}
+                                            </span>
+                                            <span className="block text-[11px] text-muted-foreground font-mono">
+                                                {h.telefone} • {new Date(h.atualizado_em).toLocaleString("pt-BR")}
+                                            </span>
+                                        </span>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </SessionGuard>
     );
