@@ -51,7 +51,7 @@ export async function PUT(request: NextRequest) {
         }
         const body = await request.json();
         const { etapa, texto } = body;
-        if (!["boasvindas", "cobranca", "abandono"].includes(etapa)) {
+        if (!["boasvindas", "cobranca", "abandono", "cartao"].includes(etapa)) {
             return NextResponse.json({ status: false, message: "etapa inválida", error: "etapa inválida" }, { status: 400 });
         }
         const res = await sbFetch("/rest/v1/templates_recuperacao?on_conflict=etapa", {

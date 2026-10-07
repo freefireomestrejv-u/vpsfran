@@ -75,6 +75,7 @@ function etapaDe(l) {
   const id = String(l.pedido_id);
   if (id.endsWith("#boasvindas")) return "boasvindas";
   if (id.startsWith("abandono:")) return "abandono";
+  if (id.endsWith("#cartao")) return "cartao";
   return "cobranca";
 }
 

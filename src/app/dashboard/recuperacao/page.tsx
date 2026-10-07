@@ -22,6 +22,7 @@ const ETAPAS: Record<string, { titulo: string; desc: string }> = {
     boasvindas: { titulo: "Boas-vindas (na hora)", desc: "Enviada ~10s após gerar o Pix." },
     cobranca: { titulo: "Cobrança (após a espera)", desc: "Enviada após o tempo de espera, só se não pagou." },
     abandono: { titulo: "Abandono (sem Pix)", desc: "Enviada após a espera quando o checkout não virou Pix." },
+    cartao: { titulo: "Cartão recusado", desc: "Enviada após a espera quando o cartão não passa." },
 };
 
 function Bloco({ titulo, desc, tpl, salvando, onTexto, onSalvar, onAudio, onRemoverAudio }: {
