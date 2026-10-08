@@ -9,11 +9,12 @@ ARG NEXT_PUBLIC_CLIENT_MODE=false
 COPY package*.json ./
 COPY patches ./patches/
 COPY prisma ./prisma/
-RUN npm ci --legacy-peer-deps && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps
 
-# Source & build
+# Source & build (Next cache persistido entre builds)
 COPY . .
-RUN npx prisma generate && npm run build
+RUN --mount=type=cache,target=/app/.next/cache npx prisma generate && npm run build
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Strip devDeps from node_modules after build
 # tsx needed at runtime, kept explicitly
