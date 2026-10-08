@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Save, Trash2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload, History, ChevronRight, ChevronDown } from "lucide-react";
+import { RefreshCw, Save, Trash2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload, History, ChevronRight, ChevronDown, User, Package, Banknote, Link2, Store, QrCode, Eye, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { cn } from "@/lib/utils";
@@ -27,12 +27,12 @@ interface Template {
 }
 
 const VARS = [
-    { v: "{nome}", d: "primeiro nome" },
-    { v: "{produto}", d: "ex. de Renew Veins" },
-    { v: "{valor}", d: "ex. (R$ 319,00)" },
-    { v: "{codigo}", d: "Pix copia e cola" },
-    { v: "{link}", d: "link do checkout" },
-    { v: "{marca}", d: "nome da loja" },
+    { v: "{nome}", rotulo: "Nome do cliente", d: "primeiro nome", exemplo: "Maria", icone: User },
+    { v: "{produto}", rotulo: "Produto", d: "nome da oferta", exemplo: "Renew Veins - 3 Potes", icone: Package },
+    { v: "{valor}", rotulo: "Valor", d: "preço formatado", exemplo: "(R$ 319,00)", icone: Banknote },
+    { v: "{codigo}", rotulo: "Código Pix", d: "copia e cola", exemplo: "00020101…", icone: QrCode },
+    { v: "{link}", rotulo: "Link do checkout", d: "retomar compra", exemplo: "checkout.b4you.com.br/…", icone: Link2 },
+    { v: "{marca}", rotulo: "Nome da marca", d: "sua loja", exemplo: "Equipe Renew Veins", icone: Store },
 ];
 
 const ETAPAS: Record<string, { titulo: string; desc: string }> = {
@@ -71,9 +71,10 @@ function previaBloco(b: Bloco): string {
     return "Envia o Pix copia e cola (só se existir)";
 }
 
-function AreaTexto({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string }) {
+function AreaTexto({ value, onChange, id, abridorRef }: { value: string; onChange: (v: string) => void; id: string; abridorRef?: React.MutableRefObject<(() => void) | null> }) {
     const ref = useRef<HTMLTextAreaElement>(null);
     const [busca, setBusca] = useState<string | null>(null);
+    const [ativo, setAtivo] = useState(0);
 
     const aoDigitar = (v: string) => {
         onChange(v);
@@ -83,6 +84,7 @@ function AreaTexto({ value, onChange, id }: { value: string; onChange: (v: strin
         const antes = v.slice(0, pos);
         const m = antes.match(/@(\w*)$/);
         setBusca(m ? m[1].toLowerCase() : null);
+        setAtivo(0);
     };
 
     const inserir = (variavel: string) => {
@@ -102,6 +104,24 @@ function AreaTexto({ value, onChange, id }: { value: string; onChange: (v: strin
     };
 
     const opcoes = busca === null ? [] : VARS.filter((x) => x.v.toLowerCase().includes(busca));
+    const idLista = `${id}-vars`;
+    const idxAtivo = opcoes.length ? Math.min(ativo, opcoes.length - 1) : 0;
+
+    if (abridorRef) {
+        abridorRef.current = () => {
+            const el = ref.current;
+            if (!el) { onChange(value + "@"); setBusca(""); setAtivo(0); return; }
+            const pos = el.selectionStart || 0;
+            onChange(value.slice(0, pos) + "@" + value.slice(pos));
+            setBusca("");
+            setAtivo(0);
+            requestAnimationFrame(() => {
+                el.focus();
+                el.setSelectionRange(pos + 1, pos + 1);
+            });
+        };
+    }
+
     return (
         <div className="relative">
             <Textarea
@@ -110,31 +130,110 @@ function AreaTexto({ value, onChange, id }: { value: string; onChange: (v: strin
                 value={value}
                 onChange={(e) => aoDigitar(e.target.value)}
                 onKeyDown={(e) => {
+                    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && busca !== null && opcoes.length > 0) {
+                        e.preventDefault();
+                        setAtivo((a) => (e.key === "ArrowDown" ? (a + 1) % opcoes.length : (a - 1 + opcoes.length) % opcoes.length));
+                    }
                     if (e.key === "Enter" && busca !== null && opcoes.length > 0) {
                         e.preventDefault();
-                        inserir(opcoes[0].v);
+                        inserir(opcoes[idxAtivo].v);
                     }
                     if (e.key === "Escape") setBusca(null);
                 }}
                 onBlur={() => setTimeout(() => setBusca(null), 150)}
-                className="min-h-[96px] font-mono text-sm"
-                placeholder="Digite @ para variáveis..."
+                role="combobox"
+                aria-expanded={busca !== null && opcoes.length > 0}
+                aria-controls={idLista}
+                aria-activedescendant={busca !== null && opcoes.length > 0 ? `${idLista}-${idxAtivo}` : undefined}
+                aria-autocomplete="list"
+                className="min-h-[96px] text-[15px] leading-relaxed"
+                placeholder="Escreva a mensagem... digite @ para variáveis"
                 aria-label="Texto da mensagem"
             />
             {busca !== null && opcoes.length > 0 && (
-                <div className="absolute z-20 left-0 right-0 sm:right-auto sm:w-72 mt-1 rounded-lg border bg-popover shadow-xl p-1" role="listbox" aria-label="Variáveis disponíveis">
-                    {opcoes.map((o) => (
-                        <button
-                            key={o.v}
-                            onMouseDown={(e) => { e.preventDefault(); inserir(o.v); }}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-sm hover:bg-muted text-left"
-                            role="option"
-                            aria-selected="false"
-                        >
-                            <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs text-primary">{o.v}</code>
-                            <span className="text-xs text-muted-foreground">{o.d}</span>
-                        </button>
-                    ))}
+                <div id={idLista} className="absolute z-20 left-0 right-0 sm:right-auto sm:w-80 mt-1 rounded-xl border bg-popover shadow-xl shadow-black/5 p-1.5" role="listbox" aria-label="Inserir variável">
+                    <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Inserir variável</p>
+                    {opcoes.map((o, i) => {
+                        const Icone = o.icone;
+                        const sel = i === idxAtivo;
+                        return (
+                            <button
+                                key={o.v}
+                                id={`${idLista}-${i}`}
+                                role="option"
+                                aria-selected={sel}
+                                onMouseDown={(e) => { e.preventDefault(); inserir(o.v); }}
+                                onMouseEnter={() => setAtivo(i)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${sel ? "bg-primary/10" : "hover:bg-muted"}`}
+                            >
+                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${sel ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                                    <Icone className="h-4 w-4" />
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-semibold">{o.rotulo}</span>
+                                    <span className="block text-xs text-muted-foreground truncate">{o.d} · ex.: {o.exemplo}</span>
+                                </span>
+                                <code className="font-mono text-[11px] text-muted-foreground shrink-0">{o.v}</code>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PreviaCliente({ texto }: { texto: string }) {
+    const partes = texto.split(/(\{[a-z]+\})/g);
+    const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return (
+        <div className="flex justify-end">
+            <div className="max-w-[92%] rounded-2xl rounded-br-sm bg-[#DCF8C6] dark:bg-[#005C4B] px-3 py-2 shadow-sm">
+                <p className="text-[15px] leading-relaxed text-slate-800 dark:text-slate-50 whitespace-pre-wrap break-words">
+                    {partes.map((p, i) => {
+                        const def = VARS.find((x) => x.v === p);
+                        return def ? (
+                            <mark key={i} className="rounded px-0.5 bg-yellow-200/70 dark:bg-yellow-500/30 text-inherit" title={def.rotulo}>
+                                {def.exemplo}
+                            </mark>
+                        ) : (
+                            <span key={i}>{p}</span>
+                        );
+                    })}
+                </p>
+                <p className="text-right text-[10px] text-slate-500 dark:text-slate-300 mt-1">{hora}</p>
+            </div>
+        </div>
+    );
+}
+
+function BlocoTexto({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string }) {
+    const [previa, setPrevia] = useState(false);
+    const abridor = useRef<(() => void) | null>(null);
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button" variant="outline" size="sm" className="h-8 text-xs"
+                    onClick={() => abridor.current?.()}
+                    aria-label="Inserir variável"
+                    title="Abre o seletor de variáveis"
+                >
+                    <AtSign className="h-3.5 w-3.5 mr-1" /> Variável
+                </Button>
+                <Button
+                    type="button" variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground"
+                    onClick={() => setPrevia((v) => !v)}
+                    aria-expanded={previa}
+                    aria-controls={`${id}-previa`}
+                >
+                    <Eye className="h-3.5 w-3.5 mr-1" /> {previa ? "Ocultar prévia" : "Ver como o cliente vê"}
+                </Button>
+            </div>
+            <AreaTexto value={value} onChange={onChange} id={id} abridorRef={abridor} />
+            {previa && (
+                <div id={`${id}-previa`} aria-label="Prévia da mensagem">
+                    <PreviaCliente texto={value} />
                 </div>
             )}
         </div>
@@ -375,7 +474,7 @@ export default function RecuperacaoPage() {
                                     </div>
                                     <div id={painelId} hidden={!aberto} className="px-4 pb-4">
                                         {b.tipo === "texto" && (
-                                            <AreaTexto
+                                            <BlocoTexto
                                                 value={b.texto || ""}
                                                 onChange={(v) => setBloco(etapa, (x) => x.map((y) => (y.id === b.id ? { ...y, texto: v } : y)))}
                                                 id={`texto-${etapa}-${b.id}`}
