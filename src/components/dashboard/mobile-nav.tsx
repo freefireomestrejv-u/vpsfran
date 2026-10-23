@@ -28,6 +28,7 @@ import {
     Tag,
     MessageCircleReply,
     UserPlus,
+    BarChart3,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -44,6 +45,7 @@ const navGroups: NavGroup[] = [
         label: "Main",
         items: [
             { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
+            { href: "/dashboard/funil", label: "Funil de vendas", icon: BarChart3 },
             { href: "/dashboard/sessions", label: "Sessões / QR", icon: QrCode },
         ],
     },
@@ -124,7 +126,7 @@ export function MobileNav({ appName = "RenewHub" }: { appName?: string }) {
                 <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
                     {navGroups.map((group) => {
                         const visibleItems = group.items.filter(
-                            (item) => (!item.superadminOnly || userRole === "SUPERADMIN") && (!clientMode || item.href === "/dashboard/chat" || (item.href === "/dashboard/recuperacao" && userRole === "SUPERADMIN"))
+                            (item) => (!item.superadminOnly || userRole === "SUPERADMIN") && (!clientMode || item.href === "/dashboard/chat" || ((item.href === "/dashboard/recuperacao" || item.href === "/dashboard/funil") && userRole === "SUPERADMIN"))
                         );
                         if (visibleItems.length === 0) return null;
 
