@@ -17,9 +17,12 @@ function startOfBrDayUTC(daysAgo: number): string {
 }
 
 const SEL_EVENTO = encodeURIComponent("evento:payload->>event_name");
-const SEL_EVENTO_SID = encodeURIComponent("evento:payload->>event_name,sid:payload->>sale_id");
 const COL_EVENTO = encodeURIComponent("payload->>event_name");
 const COL_OFER = encodeURIComponent("payload->offer->>id");
+// Dados mínimos de cobrança p/ saber a origem (produtor × afiliado): evento, venda e URL/etiqueta
+const SEL_EVENTO_SID = encodeURIComponent(
+    "evento:payload->>event_name,sid:payload->>sale_id,curl:payload->checkout->>url,cku:payload->checkout->>url_3_steps,sck:payload->tracking_parameters->>sck,utm:payload->tracking_parameters->>utm_source"
+);
 
 // ---- Ofertas ativas na página (IDs extraídos dos links de checkout B4Y) ----
 // Tudo que NÃO está aqui é ignorado no funil (ex.: promos antigas, outros produtos).
@@ -30,6 +33,26 @@ const OFERTAS_ATIVAS: Record<string, string> = {
     "XfTiRiO9yk": "Renew Veins - 10 Potes",
 };
 const IDS_ATIVOS = Object.keys(OFERTAS_ATIVAS).join(",");
+
+// ---- Filtro de tráfego: só o link do PRODUTOR (vocÊ) ---
+// A B4Y grava quem trouxe a venda no código de afiliado (?b4f=XXX da URL).
+// Seus links (os da página) são pelados, sem ?b4f=. Todo evento com código
+// de afiliado é tráfego de referrer e NÃO entra no funil (a B4Y readOnly).
+// Exceções que são sempre suas:
+//   - vendas vindas do lembrete de recuperação (utm_source=recuperacao)
+//   - qualquer sessão etiquetada pela nossa automação (sck preenchido)
+function eProprio(checkoutUrl: string, utmSource?: string, sck?: string): boolean {
+    const utm = String(utmSource || "").toLowerCase();
+    if (utm === "recuperacao") return true;
+    if (String(sck || "").trim()) return true;
+    const m = String(checkoutUrl || "").match(/b4f=([A-Za-z0-9_-]+)/);
+    return !m; // sem código de afiliado = link do produtor
+}
+function eProprioPayload(p: any): boolean {
+    const tp = p.tracking_parameters || {};
+    const url = String(p.checkout?.url || p.checkout?.url_3_steps || "");
+    return eProprio(url, tp.utm_source, tp.sck);
+}
 
 // Busca paginada (PostgREST limita a 1000 registros por página).
 async function listarEventos(cfg: { url: string; key: string }, query: string, maxPaginas = 4) {
@@ -75,14 +98,38 @@ export async function GET(request: NextRequest) {
         const diasMap: Record<string, number> = { hoje: 0, "7d": 7, "30d": 30, total: -1 };
         const dias = diasMap[periodo] ?? 7;
         const range = dias >= 0 ? `&recebido_em=gte.${startOfBrDayUTC(dias)}` : "";
+        const C = cfg; // captura não-nula p/ closures abaixo
 
-        // 1) Contagem de todos os eventos no período
-        const eventosRows = await listarEventos(cfg, `select=${SEL_EVENTO}${range}`);
-        const eventos: Record<string, number> = {};
-        for (const r of eventosRows) {
-            const nome = r.evento || "(sem nome)";
-            eventos[nome] = (eventos[nome] || 0) + 1;
+        // 1) Contagens de eventos — com payload, para filtrar por OFERTA ATIVA + LINK DO PRODUTOR
+        //    (a contagem global antiga somava tráfego de afiliados, que não é função do robô)
+        async function payloadsFiltrados(nomeEvento: string): Promise<any[]> {
+            const out: any[] = [];
+            let from = 0;
+            while (true) {
+                const resEv = await fetch(
+                    `${C.url}/rest/v1/webhook_eventos?select=payload&${COL_EVENTO}=eq.${encodeURIComponent(nomeEvento)}${range}&order=recebido_em.desc&limit=1000&offset=${from}`,
+                    { headers: { apikey: C.key, Authorization: `Bearer ${C.key}` } }
+                );
+                if (!resEv.ok) throw new Error(`Supabase: HTTP ${resEv.status}`);
+                const page: any[] = await resEv.json();
+                if (!Array.isArray(page) || page.length === 0) break;
+                for (const r of page) {
+                    const p = r.payload || {};
+                    if (!OFERTAS_ATIVAS[String(p.offer?.id || "")]) continue;
+                    if (!eProprioPayload(p)) continue;
+                    out.push(p);
+                }
+                if (page.length < 1000) break;
+                from += 1000;
+            }
+            return out;
         }
+        const [recusadosP, pixExpiradosP, reembolsosP, chargebacksP] = await Promise.all([
+            payloadsFiltrados("refused-payment"),
+            payloadsFiltrados("expired-pix"),
+            payloadsFiltrados("refund"),
+            payloadsFiltrados("chargeback"),
+        ]);
 
         // 2) Vendas únicas (sale_id) para estimar etapas do funil — só das 4 ofertas ativas
         const cobrancasRows = await listarEventos(
@@ -93,9 +140,63 @@ export async function GET(request: NextRequest) {
         const sidsPagos = new Set<string>();
         for (const r of cobrancasRows) {
             if (!r.sid) continue;
+            if (!eProprio(r.curl, r.utm, r.sck) && !eProprio(r.cku, r.utm, r.sck)) continue; // só o link do produtor
             sidsCobranca.add(String(r.sid));
             if (r.evento === "approved-payment") sidsPagos.add(String(r.sid));
         }
+
+        // 2b) Payload dos abandoned-cart do período (só as 4 ofertas ativas):
+        //     serve para (a) contar PESSOAS (e não eventos — a B4Y dispara 1 evento
+        //     por sessão abandonada, a mesma pessoa pode gerar vários) e
+        //     (b) saber DE ONDE veio cada checkout (código do afiliado no link, lembrete, direto).
+        const abandonosPayload: any[] = [];
+        {
+            let from = 0;
+            while (true) {
+                const resAb = await fetch(
+                    `${cfg.url}/rest/v1/webhook_eventos?select=payload&${COL_EVENTO}=eq.abandoned-cart${range}&order=recebido_em.desc&limit=1000&offset=${from}`,
+                    { headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` } }
+                );
+                if (!resAb.ok) throw new Error(`Supabase: HTTP ${resAb.status}`);
+                const page: any[] = await resAb.json();
+                if (!Array.isArray(page) || page.length === 0) break;
+                for (const r of page) {
+                    const p = r.payload || {};
+                    if (!OFERTAS_ATIVAS[String(p.offer?.id || "")]) continue;
+                    if (!eProprioPayload(p)) continue; // só tráfego do produtor
+                    abandonosPayload.push(r);
+                }
+                if (page.length < 1000) break;
+                from += 1000;
+            }
+        }
+
+        // Cliente único: mesmo e-mail (ou WhatsApp) = 1 pessoa, mesmo que tenha
+        // aberto o checkout 7 vezes (o evento dispara por sessão).
+        function chaveCliente(p: any): string {
+            return String(p.customer?.email || "").toLowerCase() || String(p.customer?.whatsapp || "").trim();
+        }        const clientesAbandono = new Set<string>();
+        interface Origem { rotulo: string; clientes: number }
+        const origensMap = new Map<string, Set<string>>();
+        for (const r of abandonosPayload) {
+            const p = r.payload || {};
+            const chave = chaveCliente(p) || "(sem identificação)";
+            clientesAbandono.add(chave);
+            const tp = p.tracking_parameters || {};
+            let rotulo: string;
+            if (String(tp.utm_source || "").toLowerCase() === "recuperacao") rotulo = "Lembrete WhatsApp (recuperação)";
+            else if (String(tp.sck || "").trim()) rotulo = "Sua página (etiquetada)";
+            else rotulo = "Sua página (link direto)";
+            if (!origensMap.has(rotulo)) origensMap.set(rotulo, new Set());
+            origensMap.get(rotulo)!.add(chave); // Set cuida da repetição da mesma pessoa
+        }
+        const origens: Origem[] = [...origensMap.entries()]
+            .map(([rotulo, set]) => ({ rotulo, clientes: set.size }))
+            .sort((a, b) => b.clientes - a.clientes);
+        // Top 5 + resto consolidado
+        const origensLista: Origem[] = origens.length > 6
+            ? [...origens.slice(0, 5), { rotulo: "Outros vínculos", clientes: origens.slice(5).reduce((s, o) => s + o.clientes, 0) }]
+            : origens;
 
         // 3) Pagamentos aprovados (payload completo: valor, método, produto, cliente, UTM)
         //    filtrados pelas 4 ofertas ativas da página
@@ -107,7 +208,8 @@ export async function GET(request: NextRequest) {
         const aprovadosTodos: any[] = await aprovadosRes.json();
         const aprovadosRows = aprovadosTodos.filter((r: any) => {
             const p = r.payload || {};
-            return Boolean(OFERTAS_ATIVAS[String(p.offer?.id || "")]);
+            if (!OFERTAS_ATIVAS[String(p.offer?.id || "")]) return false;
+            return eProprioPayload(p); // só vendas vindas do link do produtor (ou etiqueta do lembrete)
         });
 
         // Recuperação (acumuladores: definidos antes do loop de vendas)
@@ -234,8 +336,11 @@ export async function GET(request: NextRequest) {
             periodo,
             inicio: dias >= 0 ? startOfBrDayUTC(dias) : null,
             visitas,
-            checkoutsIniciados: (eventos["abandoned-cart"] || 0) + sidsCobranca.size,
-            abandonados: eventos["abandoned-cart"] || 0,
+            // Pessoas (não eventos): cada pessoa abrindo 5× o checkout continua sendo 1 checkout aberto.
+            // As cobranças (pix/boleto) entram como entry adicional porque geram outra sessão na B4Y.
+            checkoutsIniciados: clientesAbandono.size + sidsCobranca.size,
+            abandonados: clientesAbandono.size,
+            origens: origensLista,
             cobrancas: sidsCobranca.size,
             pagos,
             faturamento,
@@ -244,10 +349,10 @@ export async function GET(request: NextRequest) {
             porMetodo,
             porProduto,
             recuperacao,
-            recusados: eventos["refused-payment"] || 0,
-            pixExpirados: eventos["expired-pix"] || 0,
-            reembolsos: eventos["refund"] || 0,
-            chargebacks: eventos["chargeback"] || 0,
+            recusados: recusadosP.length,
+            pixExpirados: pixExpiradosP.length,
+            reembolsos: reembolsosP.length,
+            chargebacks: chargebacksP.length,
             ultimasVendas: ultimasVendas.slice(0, 10),
         };
 

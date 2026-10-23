@@ -29,6 +29,7 @@ interface Dados {
         recuperadas: number;
         receitaRecuperada: number;
     };
+    origens: { rotulo: string; clientes: number }[];
     porMetodo: Record<string, { count: number; receita: number }>;
     porProduto: { nome: string; count: number; receita: number }[];
     recusados: number;
@@ -719,6 +720,35 @@ export default function FunilPage() {
                     background: #fce7f0;
                     color: #a61e4d;
                 }
+                /* ---- Faixa: origem dos checkouts ---- */
+                .fnl .card.orc {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                }
+                .fnl .card.orc .chips {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    max-width: 62%;
+                }
+                .fnl .orc .chipn {
+                    font-style: normal;
+                    font-size: 13px;
+                    padding: 6px 14px;
+                    border-radius: 99px;
+                    background: #f0f6f9;
+                    border: 1px solid rgba(11, 27, 43, .08);
+                    white-space: nowrap;
+                }
+                .fnl .orc .chipn b {
+                    color: #087f55;
+                }
+                @media (max-width: 720px) {
+                    .fnl .card.orc .chips { max-width: 100%; }
+                }
                 /* ---- Card: Recuperação de carrinho ---- */
                 .fnl .card.rec .rechero {
                     display: flex;
@@ -994,7 +1024,7 @@ export default function FunilPage() {
                                 <span className="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg></span>
                             </div>
                             <div className="kv"><span className="v">{visitasVal == null ? "—" : numero(visitasVal)}</span></div>
-                            <span className="kf">cada carregamento de página conta 1</span>
+                            <span className="kf">só vale o snippet da landing — não conta o resto da internet</span>
                         </div>
                         <div className="kpi">
                             <div className="kh">
@@ -1002,7 +1032,7 @@ export default function FunilPage() {
                                 <span className="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6h15l-2 9H8L6 3H3" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /></svg></span>
                             </div>
                             <div className="kv"><span className="v">{numero(d.checkoutsIniciados)}</span></div>
-                            <span className="kf">inclui quem abandonou e quem gerou cobrança</span>
+                            <span className="kf">pessoas que abriram o checkout pelos SEUS links (afiliados não entram na conta)</span>
                         </div>
                         <div className="kpi hi">
                             <div className="kh">
@@ -1024,9 +1054,24 @@ export default function FunilPage() {
                                 <span className="v">{numero(d.abandonados)}</span>
                                 <i className="chip p">{pct(d.abandonados / Math.max(d.checkoutsIniciados, 1))} dos checkouts</i>
                             </div>
-                            <span className="kf">Pix ou boleto emitidos: <b>{numero(d.cobrancas)}</b></span>
+                            <span className="kf">pessoas que largaram o carrinho · Pix ou boleto emitidos: <b>{numero(d.cobrancas)}</b></span>
                         </div>
                     </div>
+
+                    {/* Origem dos checkouts: o tráfego vem de vários lugares, não só da landing */}
+                    {d.origens.length > 0 && (
+                        <div className="card orc">
+                            <div>
+                                <h2 style={{ fontSize: 16 }}>De onde vieram {numero(d.checkoutsIniciados)} checkouts abertos</h2>
+                                <p className="mu" style={{ margin: "4px 0 0", fontSize: 13 }}>de onde entraram no checkout — só os seus links de produtor, sem afiliados</p>
+                            </div>
+                            <div className="chips">
+                                {d.origens.map((o) => (
+                                    <i className="chipn" key={o.rotulo}>{o.rotulo} · <b>{o.clientes}</b></i>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Aviso: rastreamento de visitas não instalado */}
                     {visitasVal == null && (
