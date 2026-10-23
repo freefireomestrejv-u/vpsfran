@@ -26,6 +26,27 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => Math.floor(a + Math.random() * (b - a));
 const log = (...a) => console.log(new Date().toLocaleString("pt-BR"), ...a);
 
+// ------------------------------------------------------------------
+// Etiqueta de rastreamento: marca o link de retomada para sabermos no
+// webhook da B4Y que a compra veio de um lembrete (utm_source=recuperacao).
+// Não mexe em nada do link original (b4f= do afiliado é preservado);
+// se o link for inválido, volta exatamente como era.
+// ------------------------------------------------------------------
+function linkMarcado(l) {
+  const bruto = String(l?.link_retomada || "").trim();
+  if (!bruto || !/^https?:\/\//i.test(bruto)) return bruto;
+  try {
+    const u = new URL(bruto);
+    if (!u.searchParams.has("utm_source")) u.searchParams.set("utm_source", "recuperacao");
+    if (!u.searchParams.has("utm_medium")) u.searchParams.set("utm_medium", "whatsapp");
+    if (!u.searchParams.has("sck")) u.searchParams.set("sck", "recuperacao-wpp");
+    if (l?.id != null && !u.searchParams.has("b1")) u.searchParams.set("b1", String(l.id));
+    return u.toString();
+  } catch {
+    return bruto;
+  }
+}
+
 function horaBrasilia() {
   return Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
 }
@@ -57,7 +78,7 @@ function render(template, l) {
     .replaceAll("{produto}", produto)
     .replaceAll("{valor}", valor)
     .replaceAll("{codigo}", l.codigo_pix || "")
-    .replaceAll("{link}", l.link_retomada || "")
+    .replaceAll("{link}", linkMarcado(l))
     .replaceAll("{marca}", NOME_MARCA);
 }
 
@@ -111,7 +132,7 @@ function montarMensagem(l, tpls = {}) {
     }
     const corpo = [`Oi, ${primeiro}! Aqui é da ${NOME_MARCA}.`, `Vi que você gerou o Pix${produto ? ` de${produto}` : ""}${valor}, mas o pagamento ainda não caiu.`];
     if (l.codigo_pix) corpo.push("Se ainda quiser, segue o Pix Copia e Cola:");
-    else if (l.link_retomada) corpo.push(`Você pode finalizar por aqui: ${l.link_retomada}`);
+    else if (l.link_retomada) corpo.push(`Você pode finalizar por aqui: ${linkMarcado(l)}`);
     corpo.push("Se já pagou, pode ignorar esta mensagem. Para não receber mais avisos, responda SAIR.");
     const partes = [corpo.join("\n\n")];
     if (l.codigo_pix && !partes[0].includes(l.codigo_pix)) partes.push(l.codigo_pix);
@@ -178,6 +199,14 @@ async function ciclo() {
 
   for (const l of lote ?? []) {
     try {
+      // ⛔ Filtro de origem: o robô só recupera leads do PRODUTOR.
+      // A B4Y grava de quem veio o abandono no código de afiliado (?b4f=XXX) do link.
+      // Link com código = lead de afiliado → pula (afiliados recuperam por conta própria).
+      if (/b4f=[A-Za-z0-9_-]+/.test(String(l.link_retomada || ""))) {
+        await atualizar(l.id, { status: "descartado", erro: "Origem: link de afiliado (tem b4f) — robô só recupera leads do produtor" });
+        log(`⏭️  Descartado (lead de afiliado): pedido ${l.pedido_id}`);
+        continue;
+      }
       if (l.expira_em && new Date(l.expira_em) < new Date()) { await atualizar(l.id, { status: "descartado", erro: "Pix expirado" }); continue; }
       const { data: bloqueado } = await supabase.from("optout").select("telefone").eq("telefone", l.telefone).maybeSingle();
       if (bloqueado) { await atualizar(l.id, { status: "descartado", erro: "optout" }); continue; }
