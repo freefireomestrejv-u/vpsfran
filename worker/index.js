@@ -52,17 +52,26 @@ function horaBrasilia() {
   return Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
 }
 
-// Templates editáveis na aba Recuperação (cache de 60s; cai para o padrão se falhar)
+// Templates editáveis na aba Recuperação (cache de 60s; cai para o padrão se falhar).
+// Cada sessão pode ter o próprio script; sem personalização, usa o script "padrao".
 let tplCache = { quando: 0, dados: {} };
 async function carregarTemplates() {
   if (Date.now() - tplCache.quando < 60_000) return tplCache.dados;
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,blocos`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=sessao,etapa,texto,audio_url,blocos`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
     });
     const rows = await r.json();
+    const temConteudo = (t) => (Array.isArray(t.blocos) && t.blocos.length) || String(t.texto || "").trim() || t.audio_url;
     const dados = {};
-    for (const t of rows || []) dados[t.etapa] = t;
+    // 1) Base: script padrão (vale para todas as sessões)
+    for (const t of rows || []) {
+      if ((t.sessao || "padrao") === "padrao") dados[t.etapa] = t;
+    }
+    // 2) Personalização da SESSÃO deste worker sobrescreve o padrão
+    for (const t of rows || []) {
+      if (t.sessao === WAAKG_SESSION_ID && temConteudo(t)) dados[t.etapa] = t;
+    }
     tplCache = { quando: Date.now(), dados };
   } catch (e) {
     log("Aviso: usando textos padrão (templates).");

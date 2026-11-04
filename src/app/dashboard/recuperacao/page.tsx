@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { RefreshCw, Save, Trash2, Plus, ArrowUp, ArrowDown, Type, Music4, Hash, Upload, History, ChevronRight, ChevronDown, User, Package, Banknote, Link2, Store, QrCode, Eye, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
+import { useSession } from "@/components/dashboard/session-provider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Bloco {
@@ -24,6 +26,7 @@ interface Template {
     texto: string;
     audio_url: string | null;
     blocos?: Bloco[] | null;
+    origem?: string;
 }
 
 const VARS = [
@@ -253,6 +256,8 @@ function diaGrupo(iso: string): string {
 
 export default function RecuperacaoPage() {
     const router = useRouter();
+    const { sessions } = useSession();
+    const [escopo, setEscopo] = useState<string>("padrao");
     const [tpls, setTpls] = useState<Record<string, Template>>({});
     const [blocos, setBlocos] = useState<Record<string, Bloco[]>>({});
     const [loading, setLoading] = useState(true);
@@ -266,7 +271,7 @@ export default function RecuperacaoPage() {
     const carregar = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/recuperacao/templates");
+            const res = await fetch(`/api/recuperacao/templates?sessao=${encodeURIComponent(escopo)}`);
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || "Falha ao carregar");
             const map: Record<string, Template> = {};
@@ -284,7 +289,7 @@ export default function RecuperacaoPage() {
         }
     };
 
-    useEffect(() => { carregar(); }, []);
+    useEffect(() => { carregar(); }, [escopo]);
 
     const carregarHistorico = async () => {
         try {
@@ -324,6 +329,7 @@ export default function RecuperacaoPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     etapa,
+                    sessao: escopo,
                     texto: textos.join("\n\n"),
                     audio_url: primeiroAudio?.audio_url || null,
                     blocos: lista,
@@ -331,7 +337,7 @@ export default function RecuperacaoPage() {
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || "Falha ao salvar");
-            toast.success("Salvo! Vale para as próximas vendas.");
+            toast.success(escopo === "padrao" ? "Salvo! Vale para todas as sessões." : "Salvo! Vale para as vendas desta sessão.");
         } catch (e: any) {
             toast.error(e.message);
         } finally {
@@ -342,6 +348,7 @@ export default function RecuperacaoPage() {
     const subirAudio = async (etapa: string, id: string, file: File) => {
         const fd = new FormData();
         fd.append("etapa", etapa);
+        fd.append("sessao", escopo);
         fd.append("nome", `${etapa}-${id}`);
         fd.append("file", file);
         setSubindo(id);
@@ -376,7 +383,31 @@ export default function RecuperacaoPage() {
             <div className="space-y-8 max-w-3xl">
                 <div>
                     <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Recuperação de carrinho</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Monte a sequência de cada etapa. Vale na hora para as próximas vendas.</p>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Monte a sequência de cada etapa. O script <strong>Padrão</strong> vale para todas as sessões; cada sessão pode ter o próprio script.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap" aria-label="Script de qual sessão">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Script de:</span>
+                    <Select value={escopo} onValueChange={setEscopo}>
+                        <SelectTrigger className="h-9 w-full sm:w-[280px] border border-border/60 bg-background/50 rounded-xl shadow-sm focus:ring-1 focus:ring-primary/20" aria-label="Escolher sessão do script">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border border-border/50 shadow-lg p-1">
+                            <SelectItem value="padrao" className="rounded-lg py-2 focus:bg-muted/50 cursor-pointer">
+                                Padrão — todas as sessões
+                            </SelectItem>
+                            {sessions.map((s) => (
+                                <SelectItem key={s.sessionId} value={s.sessionId} className="rounded-lg py-2 focus:bg-muted/50 cursor-pointer">
+                                    <span className="inline-flex items-center gap-2">
+                                        <span className={`inline-flex h-2 w-2 rounded-full ${s.status === "CONNECTED" ? "bg-emerald-500" : "bg-destructive"}`} />
+                                        {s.name || s.sessionId}
+                                    </span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="flex gap-1 bg-muted/60 p-1 rounded-xl w-full sm:w-fit overflow-x-auto" role="tablist" aria-label="Etapas da recuperação">
@@ -410,7 +441,19 @@ export default function RecuperacaoPage() {
                         hidden={abaAtiva !== etapa}
                         className="space-y-4"
                     >
-                        <p className="text-sm text-muted-foreground">{ETAPAS[etapa].desc}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm text-muted-foreground">{ETAPAS[etapa].desc}</p>
+                            {escopo !== "padrao" && (
+                                <span className={cn(
+                                    "text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap",
+                                    tpls[etapa]?.origem === "sessao"
+                                        ? "bg-primary/10 text-primary border-primary/30"
+                                        : "bg-muted text-muted-foreground border-transparent"
+                                )}>
+                                    {tpls[etapa]?.origem === "sessao" ? "Script desta sessão" : "Usando o script padrão"}
+                                </span>
+                            )}
+                        </div>
 
                         {(blocos[etapa] || []).length === 0 && (
                             <div className="rounded-xl border border-dashed p-6 text-center">
