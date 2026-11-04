@@ -33,6 +33,8 @@ export function Navbar({ appName }: NavbarProps) {
     const { data: session } = useSession();
     // Modo cliente (VPS): esconde relógio, sessão, sino e dados (só navegação mobile).
     const clientMode = process.env.NEXT_PUBLIC_CLIENT_MODE === "true";
+    // SUPERADMIN mantém o seletor de sessão e o sino mesmo no modo cliente.
+    const isAdmin = (session?.user as any)?.role === "SUPERADMIN";
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -146,11 +148,15 @@ export function Navbar({ appName }: NavbarProps) {
                 <MobileNav appName={appName} />
             </div>
 
-            {!clientMode && (
-
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                <span className="hidden sm:inline"><RealtimeClock /></span>
-                <SessionSelector />
+                {(!clientMode || isAdmin) && (
+                    <>
+                        <span className="hidden sm:inline"><RealtimeClock /></span>
+                        <SessionSelector />
+                    </>
+                )}
+
+                {(!clientMode || isAdmin) && <>
                 <div className="h-6 w-px bg-border/50 hidden sm:block" />
 
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -234,8 +240,8 @@ export function Navbar({ appName }: NavbarProps) {
                         </div>
                     </PopoverContent>
                 </Popover>
+                </>}
             </div>
-            )}
         </header>
     );
 }

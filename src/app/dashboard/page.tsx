@@ -29,7 +29,8 @@ export default async function DashboardPage() {
     }
 
     // Modo cliente (VPS): entra direto nas Conversas, único recurso liberado.
-    if (process.env.NEXT_PUBLIC_CLIENT_MODE === "true") {
+    // SUPERADMIN continua vendo o painel completo (inclui Sessões / QR).
+    if (process.env.NEXT_PUBLIC_CLIENT_MODE === "true" && session.user.role !== "SUPERADMIN") {
         redirect("/dashboard/chat");
     }
 

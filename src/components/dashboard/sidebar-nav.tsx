@@ -138,7 +138,7 @@ export function SidebarNav() {
                         const eAdmin = userRole === "SUPERADMIN";
                         const liberadoCliente =
                             item.href === "/dashboard/chat" ||
-                            ((item.href === "/dashboard/recuperacao" || item.href === "/dashboard/funil") && eAdmin);
+                            ((item.href === "/dashboard/sessions" || item.href === "/dashboard/recuperacao" || item.href === "/dashboard/funil") && eAdmin);
                         if (clientMode && !liberadoCliente) return false;
                         if (item.superadminOnly && userRole !== "SUPERADMIN") return false;
                         if (item.allowedRoles && (!userRole || !item.allowedRoles.includes(userRole))) return false;

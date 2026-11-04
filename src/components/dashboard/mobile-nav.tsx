@@ -125,8 +125,9 @@ export function MobileNav({ appName = "RenewHub" }: { appName?: string }) {
 
                 <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
                     {navGroups.map((group) => {
+                        const eAdmin = userRole === "SUPERADMIN";
                         const visibleItems = group.items.filter(
-                            (item) => (!item.superadminOnly || userRole === "SUPERADMIN") && (!clientMode || item.href === "/dashboard/chat" || ((item.href === "/dashboard/recuperacao" || item.href === "/dashboard/funil") && userRole === "SUPERADMIN"))
+                            (item) => (!item.superadminOnly || userRole === "SUPERADMIN") && (!clientMode || item.href === "/dashboard/chat" || ((item.href === "/dashboard/sessions" || item.href === "/dashboard/recuperacao" || item.href === "/dashboard/funil") && eAdmin))
                         );
                         if (visibleItems.length === 0) return null;
 
