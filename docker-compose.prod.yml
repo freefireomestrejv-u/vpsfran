@@ -28,11 +28,33 @@ services:
       - WAAKG_URL=http://app:3000
       - WAAKG_API_KEY=${WAAKG_API_KEY}
       - WAAKG_SESSION_ID=${WAAKG_SESSION_ID}
+      - AFFILIATE_CODE=${AFFILIATE_CODE:-}
       - NOME_MARCA=${NOME_MARCA:-Equipe Renew Veins}
       - HORA_INICIO=${WORKER_HORA_INICIO:-8}
       - HORA_FIM=${WORKER_HORA_FIM:-21}
     depends_on:
       - app
+
+  # Worker de uma afiliada (copie o bloco 'worker' acima, renomeie o serviço/container
+  # e defina AFFILIATE_CODE, WAAKG_SESSION_ID e NOME_MARCA da afiliada).
+  # worker-afiliada-exemplo:
+  #   build:
+  #     context: .
+  #     dockerfile: worker/Dockerfile
+  #   container_name: wa-akg-worker-afiliada-exemplo
+  #   restart: always
+  #   environment:
+  #     - SUPABASE_URL=${SUPABASE_URL}
+  #     - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+  #     - WAAKG_URL=http://app:3000
+  #     - WAAKG_API_KEY=${WAAKG_API_KEY}
+  #     - WAAKG_SESSION_ID=${AFILIADA_EXEMPLO_SESSION_ID}
+  #     - AFFILIATE_CODE=${AFILIADA_EXEMPLO_CODE}
+  #     - NOME_MARCA=${AFILIADA_EXEMPLO_MARCA:-Afiliada}
+  #     - HORA_INICIO=${WORKER_HORA_INICIO:-8}
+  #     - HORA_FIM=${WORKER_HORA_FIM:-21}
+  #   depends_on:
+  #     - app
 
 volumes:
   caddy_data:

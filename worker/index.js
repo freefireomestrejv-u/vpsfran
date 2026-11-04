@@ -8,6 +8,7 @@ const {
   WAAKG_URL = "http://localhost:3000",
   WAAKG_API_KEY,
   WAAKG_SESSION_ID,
+  AFFILIATE_CODE,
   NOME_MARCA = "Equipe Renew Veins",
   MAX_POR_DIA = "40",        // limite de envios nas últimas 24h (protege o chip)
   HORA_INICIO = "8",         // não envia antes dessas horas (horário de Brasília)
@@ -189,9 +190,15 @@ async function ciclo() {
   if (h < Number(HORA_INICIO) || h >= Number(HORA_FIM)) return;
   if (!(await sessaoConectada())) { log("⚠️  Sessão do WhatsApp NÃO está conectada. Nada enviado."); return; }
 
-  const { count } = await supabase.from("lembretes").select("id", { count: "exact", head: true })
+  // Limite diário por origem: cada número/sessão conta só os próprios envios.
+  const meuCodigo = AFFILIATE_CODE ? AFFILIATE_CODE.trim() : null;
+  const { data: enviados } = await supabase.from("lembretes").select("link_retomada")
     .eq("status", "enviado").gte("atualizado_em", new Date(Date.now() - 24 * 3600_000).toISOString());
-  const restante = Number(MAX_POR_DIA) - (count ?? 0);
+  const count = (enviados ?? []).filter((r) => {
+    const m = String(r.link_retomada || "").match(/b4f=([A-Za-z0-9_-]+)/);
+    return meuCodigo ? m?.[1] === meuCodigo : !m;
+  }).length;
+  const restante = Number(MAX_POR_DIA) - count;
   if (restante <= 0) { log("Limite diário atingido."); return; }
 
   const { data: lote, error } = await supabase.rpc("reservar_lembretes", { limite: Math.min(5, restante) });
@@ -199,13 +206,21 @@ async function ciclo() {
 
   for (const l of lote ?? []) {
     try {
-      // ⛔ Filtro de origem: o robô só recupera leads do PRODUTOR.
-      // A B4Y grava de quem veio o abandono no código de afiliado (?b4f=XXX) do link.
-      // Link com código = lead de afiliado → pula (afiliados recuperam por conta própria).
-      if (/b4f=[A-Za-z0-9_-]+/.test(String(l.link_retomada || ""))) {
-        await atualizar(l.id, { status: "descartado", erro: "Origem: link de afiliado (tem b4f) — robô só recupera leads do produtor" });
-        log(`⏭️  Descartado (lead de afiliado): pedido ${l.pedido_id}`);
-        continue;
+      // Roteamento por origem (código b4f no link):
+      // - Produtor (AFFILIATE_CODE vazio): só leads SEM código de afiliado.
+      // - Afiliada (AFFILIATE_CODE definido): só leads com SEU código.
+      // Demais leads são devolvidos à fila (pendente) para o worker responsável.
+      const b4fMatch = String(l.link_retomada || "").match(/b4f=([A-Za-z0-9_-]+)/);
+      const leadCode = b4fMatch ? b4fMatch[1] : null;
+      if (meuCodigo) {
+        if (leadCode !== meuCodigo) { await atualizar(l.id, { status: "pendente" }); continue; }
+      } else {
+        if (leadCode) {
+          // Lead de afiliada: devolve à fila para o worker dela (não descarta).
+          await atualizar(l.id, { status: "pendente" });
+          log(`⏭️  Ignorado (lead de afiliada ${leadCode}): pedido ${l.pedido_id}`);
+          continue;
+        }
       }
       if (l.expira_em && new Date(l.expira_em) < new Date()) { await atualizar(l.id, { status: "descartado", erro: "Pix expirado" }); continue; }
       const { data: bloqueado } = await supabase.from("optout").select("telefone").eq("telefone", l.telefone).maybeSingle();

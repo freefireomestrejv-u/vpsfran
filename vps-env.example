@@ -55,6 +55,8 @@ SUPABASE_URL="https://wpoqhuguswqqldwluftv.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="COLAR_SERVICE_ROLE"
 WAAKG_API_KEY="GERAR_NA_VPS_E_COLAR"
 WAAKG_SESSION_ID="PREENCHER_APOS_CONECTAR_SESSAO"
+# Código b4f da afiliada (deixe vazio para o worker do produtor)
+AFFILIATE_CODE=""
 NOME_MARCA="Equipe Renew Veins"
 WORKER_HORA_INICIO="8"
 WORKER_HORA_FIM="21"
