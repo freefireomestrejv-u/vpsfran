@@ -194,6 +194,33 @@ async function atualizar(id, campos) {
   await supabase.from("lembretes").update({ ...campos, atualizado_em: new Date().toISOString() }).eq("id", id);
 }
 
+// Reserva origem-aware: cada worker busca e trava SOMENTE os leads da própria origem
+// (b4f do link). A atualização condicional (status=pendente) garante exclusividade
+// entre workers concorrentes, sem depender da ordem cega da fila.
+async function reservarOrigem(limite, meuCodigo) {
+  const agora = new Date().toISOString();
+  const { data: candidatos, error } = await supabase.from("lembretes")
+    .select("*")
+    .eq("status", "pendente")
+    .lt("enviar_em", agora)
+    .order("criado_em", { ascending: true })
+    .limit(limite * 8);
+  if (error) { log("Erro ao buscar fila:", error.message); return []; }
+  const reservados = [];
+  for (const l of candidatos ?? []) {
+    if (reservados.length >= limite) break;
+    const m = String(l.link_retomada || "").match(/b4f=([A-Za-z0-9_-]+)/);
+    const leadCode = m ? m[1] : null;
+    const meu = meuCodigo ? leadCode === meuCodigo : !leadCode;
+    if (!meu) continue;
+    const { data: upd, error: e2 } = await supabase.from("lembretes")
+      .update({ status: "enviando", tentativas: (l.tentativas || 0) + 1, atualizado_em: agora })
+      .eq("id", l.id).eq("status", "pendente").select();
+    if (!e2 && upd && upd.length) reservados.push(upd[0]);
+  }
+  return reservados;
+}
+
 async function ciclo() {
   // Linhas travadas em "enviando" há mais de 10 min (worker caiu no meio): voltam para a fila
   await supabase.from("lembretes").update({ status: "pendente" })
@@ -214,27 +241,10 @@ async function ciclo() {
   const restante = Number(MAX_POR_DIA) - count;
   if (restante <= 0) { log("Limite diário atingido."); return; }
 
-  const { data: lote, error } = await supabase.rpc("reservar_lembretes", { limite: Math.min(5, restante) });
-  if (error) { log("Erro ao reservar:", error.message); return; }
+  const lote = await reservarOrigem(Math.min(5, restante), meuCodigo);
 
   for (const l of lote ?? []) {
     try {
-      // Roteamento por origem (código b4f no link):
-      // - Produtor (AFFILIATE_CODE vazio): só leads SEM código de afiliado.
-      // - Afiliada (AFFILIATE_CODE definido): só leads com SEU código.
-      // Demais leads são devolvidos à fila (pendente) para o worker responsável.
-      const b4fMatch = String(l.link_retomada || "").match(/b4f=([A-Za-z0-9_-]+)/);
-      const leadCode = b4fMatch ? b4fMatch[1] : null;
-      if (meuCodigo) {
-        if (leadCode !== meuCodigo) { await atualizar(l.id, { status: "pendente" }); continue; }
-      } else {
-        if (leadCode) {
-          // Lead de afiliada: devolve à fila para o worker dela (não descarta).
-          await atualizar(l.id, { status: "pendente" });
-          log(`⏭️  Ignorado (lead de afiliada ${leadCode}): pedido ${l.pedido_id}`);
-          continue;
-        }
-      }
       if (l.expira_em && new Date(l.expira_em) < new Date()) { await atualizar(l.id, { status: "descartado", erro: "Pix expirado" }); continue; }
       const { data: bloqueado } = await supabase.from("optout").select("telefone").eq("telefone", l.telefone).maybeSingle();
       if (bloqueado) { await atualizar(l.id, { status: "descartado", erro: "optout" }); continue; }
