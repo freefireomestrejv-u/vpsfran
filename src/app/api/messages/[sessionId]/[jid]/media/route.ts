@@ -44,6 +44,7 @@ export async function POST(
             );
         }
         const buffer = Buffer.from(await file.arrayBuffer());
+        console.log("[MEDIA-DEBUG] rota: file.size=", file?.size, "file.type=", file?.type, "type=", type, "buffer.length=", buffer.length);
 
         // Send via ChatService
         const sent = await ChatService.sendMediaMessage(
