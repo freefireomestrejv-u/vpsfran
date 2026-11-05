@@ -9,7 +9,7 @@ ARG NEXT_PUBLIC_CLIENT_MODE=false
 COPY package*.json ./
 COPY patches ./patches/
 COPY prisma ./prisma/
-RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps
+RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps && npx patch-package
 
 # Source & build (build limpo: sem cache de build anterior, evita copia velha do baileys)
 COPY . .
