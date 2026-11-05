@@ -27,9 +27,13 @@ export async function GET(request: NextRequest) {
         if (!cfg) {
             return NextResponse.json({ status: false, message: "Supabase não configurado", error: "Supabase não configurado" }, { status: 500 });
         }
-        const limite = Math.min(Number(new URL(request.url).searchParams.get("limit") || 50), 200);
+        const sp = new URL(request.url).searchParams;
+        const limite = Math.min(Number(sp.get("limit") || 50), 200);
+        // ?sessao=<sessionId> filtra pelos envios daquela sessão; "padrao"/vazio = todas
+        const sessao = (sp.get("sessao") || "").trim();
+        const filtroSessao = sessao && sessao !== "padrao" ? `&sessao=eq.${encodeURIComponent(sessao)}` : "";
         const res = await fetch(
-            `${cfg.url}/rest/v1/lembretes?select=pedido_id,nome,telefone,produto,valor,status,atualizado_em&status=eq.enviado&order=atualizado_em.desc&limit=${limite}`,
+            `${cfg.url}/rest/v1/lembretes?select=pedido_id,nome,telefone,produto,valor,status,atualizado_em&status=eq.enviado${filtroSessao}&order=atualizado_em.desc&limit=${limite}`,
             { headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` } }
         );
         if (!res.ok) throw new Error(`Supabase: HTTP ${res.status}`);

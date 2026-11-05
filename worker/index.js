@@ -275,8 +275,8 @@ async function ciclo() {
           await sleep(2000);
         }
       }
-      await atualizar(l.id, { status: "enviado", whatsapp_msg_id: msgId, erro: null });
-      log(`✅ Enviado (pedido ${l.pedido_id})`);
+      await atualizar(l.id, { status: "enviado", whatsapp_msg_id: msgId, erro: null, sessao: WAAKG_SESSION_ID });
+      log(`✅ Enviado (pedido ${l.pedido_id} via sessão ${WAAKG_SESSION_ID})`);
     } catch (e) {
       const esgotou = l.tentativas >= Number(MAX_TENTATIVAS);
       await atualizar(l.id, { status: esgotou ? "erro" : "pendente", erro: String(e.message).slice(0, 300) });

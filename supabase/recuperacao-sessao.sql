@@ -12,3 +12,8 @@ alter table public.templates_recuperacao
 
 alter table public.templates_recuperacao
   add constraint templates_recuperacao_pkey primary key (sessao, etapa);
+
+-- 3) Histórico por sessão: guarda qual sessão enviou cada lembrete
+--    (linhas antigas ficam sem sessão = aparecem só no modo "todas")
+alter table public.lembretes
+  add column if not exists sessao text;

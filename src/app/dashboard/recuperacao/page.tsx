@@ -293,7 +293,7 @@ export default function RecuperacaoPage() {
 
     const carregarHistorico = async () => {
         try {
-            const res = await fetch("/api/recuperacao/historico?limit=50");
+            const res = await fetch(`/api/recuperacao/historico?limit=50&sessao=${encodeURIComponent(escopo)}`);
             const j = await res.json();
             if (res.ok) setHistorico(j.data || []);
         } catch {
@@ -301,7 +301,7 @@ export default function RecuperacaoPage() {
         }
     };
 
-    useEffect(() => { carregarHistorico(); }, []);
+    useEffect(() => { carregarHistorico(); }, [escopo]);
 
     const setBloco = (etapa: string, fn: (b: Bloco[]) => Bloco[]) =>
         setBlocos((p) => ({ ...p, [etapa]: fn(p[etapa] || []) }));
@@ -589,7 +589,12 @@ export default function RecuperacaoPage() {
                         <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
                             <History className="h-5 w-5 text-primary" /> Histórico de enviadas
                         </h3>
-                        <p className="text-sm text-muted-foreground">Clique para abrir a conversa com o que foi enviado.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Clique para abrir a conversa com o que foi enviado.{" "}
+                            {escopo === "padrao"
+                                ? "Mostrando envios de todas as sessões."
+                                : "Mostrando só os envios desta sessão."}
+                        </p>
                     </div>
                     {historico.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nenhuma mensagem enviada ainda.</p>
