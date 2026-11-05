@@ -384,14 +384,20 @@ export class ChatService {
 
         let content: any = {};
 
+        // Áudio/voz: usa o mimetype REAL do arquivo (og/opus é o formato de nota de voz).
+        // Forçar audio/mp4 num buffer OGG derruba o upload no WhatsApp ("failed on all hosts").
+        const audioMime = mimetype && String(mimetype).startsWith('audio/')
+            ? String(mimetype)
+            : 'audio/ogg; codecs=opus';
+
         if (type === 'image') {
             content = { image: buffer, ...messageOptions };
         } else if (type === 'video') {
             content = { video: buffer, ...messageOptions };
         } else if (type === 'audio') {
-            content = { audio: buffer, mimetype: 'audio/mp4', ptt: false };
+            content = { audio: buffer, mimetype: audioMime, ptt: false };
         } else if (type === 'voice') {
-            content = { audio: buffer, mimetype: 'audio/mp4', ptt: true };
+            content = { audio: buffer, mimetype: audioMime, ptt: true };
         } else if (type === 'document') {
             content = { document: buffer, mimetype, fileName, ...messageOptions };
         } else if (type === 'sticker') {
