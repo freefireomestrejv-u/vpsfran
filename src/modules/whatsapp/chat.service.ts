@@ -377,7 +377,6 @@ export class ChatService {
         if (!instance || !instance.socket) {
             throw new Error("WhatsApp session is disconnected or not found");
         }
-        console.log("[MEDIA-DEBUG] sendMediaMessage: sessionId=", sessionId, "jid=", jid, "type=", type, "mimetype=", mimetype, "buffer.length=", buffer?.length);
 
         const messageOptions: any = {};
         if (caption) messageOptions.caption = caption;

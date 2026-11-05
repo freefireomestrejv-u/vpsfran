@@ -1,7 +1,7 @@
-diff --git a/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js b/b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
 index 074978f..9dee197 100644
 --- a/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
-+++ b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
++++ b/b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
 @@ -446,9 +446,11 @@ export const makeMessagesSocket = (config) => {
              if (isNewsletter) {
                  const patched = patchMessageBeforeSending ? await patchMessageBeforeSending(message, []) : message;
@@ -15,10 +15,10 @@ index 074978f..9dee197 100644
                      content: bytes
                  });
                  const stanza = {
-diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
-index 0d32dfb..3d5da2b 100644
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js b/b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
+index 0d32dfb..8a58957 100644
 --- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
-+++ b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
++++ b/b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
 @@ -354,6 +354,7 @@ export const encryptedStream = async (media, mediaType, { logger, saveOriginalFi
          const fileEncSha256 = sha256Enc.digest();
          encFileWriteStream.write(mac);
@@ -36,7 +36,7 @@ index 0d32dfb..3d5da2b 100644
          // send a query JSON to obtain the url & auth token to upload our media
          let uploadInfo = await refreshMediaConn(false);
          let urls;
-@@ -516,7 +517,16 @@ export const getWAUploadToServer = ({ customUploadHosts, fetchAgent, logger, opt
+@@ -516,11 +517,20 @@ export const getWAUploadToServer = ({ customUploadHosts, fetchAgent, logger, opt
          for (const { hostname } of hosts) {
              logger.debug(`uploading to "${hostname}"`);
              const auth = encodeURIComponent(uploadInfo.auth); // the auth token
@@ -54,6 +54,11 @@ index 0d32dfb..3d5da2b 100644
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
              let result;
              try {
+-                const stream = createReadStream(filePath);
++                const stream = require('fs').readFileSync(filePath);
+                 const response = await fetch(url, {
+                     dispatcher: fetchAgent,
+                     method: 'POST',
 @@ -547,10 +557,13 @@ export const getWAUploadToServer = ({ customUploadHosts, fetchAgent, logger, opt
                      parsed = undefined;
                  }
@@ -69,10 +74,10 @@ index 0d32dfb..3d5da2b 100644
                          meta_hmac: result.meta_hmac,
                          fbid: result.fbid,
                          ts: result.ts
-diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js b/b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
 index eff7a53..dec56fb 100644
 --- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
-+++ b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
++++ b/b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
 @@ -100,22 +100,46 @@ export const prepareWAMessageMedia = async (message, options) => {
          logger?.info({ key: cacheableKey }, 'Preparing raw media for newsletter');
          const { filePath, fileSha256, fileLength } = await getRawMediaUploadData(uploadData.media, options.mediaTypeOverride || mediaType, logger);
