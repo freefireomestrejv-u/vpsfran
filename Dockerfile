@@ -11,14 +11,14 @@ COPY patches ./patches/
 COPY prisma ./prisma/
 RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps
 
-# Source & build (Next cache persistido entre builds)
+# Source & build (build limpo: sem cache de build anterior, evita copia velha do baileys)
 COPY . .
-RUN --mount=type=cache,target=/app/.next/cache npx prisma generate && npm run build
+RUN npx prisma generate && npm run build
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Strip devDeps from node_modules after build
 # tsx needed at runtime, kept explicitly
-RUN npm prune --omit=dev && npm install --no-save tsx typescript
+RUN npm prune --omit=dev --ignore-scripts && npm install --no-save tsx typescript --ignore-scripts
 
 # Production image
 FROM node:26-alpine AS runner
