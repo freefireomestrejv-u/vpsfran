@@ -11,6 +11,12 @@ COPY patches ./patches/
 COPY prisma ./prisma/
 RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps && npx patch-package
 
+# Correções do Baileys (flush do arquivo temporario + upload com buffer em vez de stream)
+# aplicadas por cima do pacote instalado — sem depender do patch-package
+COPY patches/baileys-fixed/lib/Socket/messages-send.js node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
+COPY patches/baileys-fixed/lib/Utils/messages-media.js node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
+COPY patches/baileys-fixed/lib/Utils/messages.js node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
+
 # Source & build (build limpo: sem cache de build anterior, evita copia velha do baileys)
 COPY . .
 RUN npx prisma generate && npm run build
