@@ -199,20 +199,22 @@ async function atualizar(id, campos) {
 // entre workers concorrentes, sem depender da ordem cega da fila.
 async function reservarOrigem(limite, meuCodigo) {
   const agora = new Date().toISOString();
-  const { data: candidatos, error } = await supabase.from("lembretes")
+  // Filtro de origem direto na query: afiliada pega só os links com o b4f dela;
+  // produtor pega os SEM b4f (incluindo linhas sem link).
+  let query = supabase.from("lembretes")
     .select("*")
     .eq("status", "pendente")
     .lt("enviar_em", agora)
     .order("criado_em", { ascending: true })
-    .limit(limite * 8);
+    .limit(limite * 4);
+  query = meuCodigo
+    ? query.like("link_retomada", "%b4f=" + meuCodigo + "%")
+    : query.or("link_retomada.is.null,link_retomada.not.like.*b4f=*");
+  const { data: candidatos, error } = await query;
   if (error) { log("Erro ao buscar fila:", error.message); return []; }
   const reservados = [];
   for (const l of candidatos ?? []) {
     if (reservados.length >= limite) break;
-    const m = String(l.link_retomada || "").match(/b4f=([A-Za-z0-9_-]+)/);
-    const leadCode = m ? m[1] : null;
-    const meu = meuCodigo ? leadCode === meuCodigo : !leadCode;
-    if (!meu) continue;
     const { data: upd, error: e2 } = await supabase.from("lembretes")
       .update({ status: "enviando", tentativas: (l.tentativas || 0) + 1, atualizado_em: agora })
       .eq("id", l.id).eq("status", "pendente").select();
