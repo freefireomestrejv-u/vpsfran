@@ -58,8 +58,9 @@ WAAKG_SESSION_ID="PREENCHER_APOS_CONECTAR_SESSAO"
 # Worker do produtor: deixe AFFILIATE_CODE vazio (só leads SEM b4f)
 AFFILIATE_CODE=""
 NOME_MARCA="Equipe Renew Veins"
-WORKER_HORA_INICIO="8"
-WORKER_HORA_FIM="21"
+# Janela de envio (Brasilia). 0-24 = recuperação funciona a qualquer hora
+WORKER_HORA_INICIO="0"
+WORKER_HORA_FIM="24"
 
 # Worker de afiliada (opcional; suba com --profile afiliada)
 # AFILIADA_SESSION_ID = sessionId criado no painel e já conectado ao WhatsApp dela

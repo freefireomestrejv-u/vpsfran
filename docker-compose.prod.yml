@@ -30,8 +30,8 @@ services:
       - WAAKG_SESSION_ID=${WAAKG_SESSION_ID}
       - AFFILIATE_CODE=${AFFILIATE_CODE:-}
       - NOME_MARCA=${NOME_MARCA:-Equipe Renew Veins}
-      - HORA_INICIO=${WORKER_HORA_INICIO:-8}
-      - HORA_FIM=${WORKER_HORA_FIM:-21}
+      - HORA_INICIO=${WORKER_HORA_INICIO:-0}
+      - HORA_FIM=${WORKER_HORA_FIM:-24}
     depends_on:
       - app
 
@@ -52,8 +52,8 @@ services:
       - WAAKG_SESSION_ID=${AFILIADA_SESSION_ID}
       - AFFILIATE_CODE=${AFILIADA_CODE}
       - NOME_MARCA=${AFILIADA_MARCA:-Afiliada}
-      - HORA_INICIO=${WORKER_HORA_INICIO:-8}
-      - HORA_FIM=${WORKER_HORA_FIM:-21}
+      - HORA_INICIO=${WORKER_HORA_INICIO:-0}
+      - HORA_FIM=${WORKER_HORA_FIM:-24}
     depends_on:
       - app
 

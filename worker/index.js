@@ -11,8 +11,8 @@ const {
   AFFILIATE_CODE,
   NOME_MARCA = "Equipe Renew Veins",
   MAX_POR_DIA = "40",        // limite de envios nas últimas 24h (protege o chip)
-  HORA_INICIO = "8",         // não envia antes dessas horas (horário de Brasília)
-  HORA_FIM = "21",           // nem depois
+  HORA_INICIO = "0",         // janela de envio (horário de Brasília): 0-24 = sempre
+  HORA_FIM = "24",
   INTERVALO_MIN_S = "20",    // pausa aleatória entre mensagens
   INTERVALO_MAX_S = "60",
   MAX_TENTATIVAS = "3",
