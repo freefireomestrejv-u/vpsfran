@@ -38,7 +38,8 @@ function temConteudo(r: any): boolean {
 }
 
 // GET: scripts da sessão pedida (?sessao=, padrão = "padrao").
-// Para uma sessão, mescla com o padrão: linha da sessão vence quando existir.
+// Regra: cada sessão usa SOMENTE o próprio script — sem fallback entre sessões.
+// O "padrao" é o script do produtor; sessão sem script = textos genéricos do sistema.
 export async function GET(request: NextRequest) {
     try {
         const user = await getAuthenticatedUser(request);
@@ -46,30 +47,17 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
         const sessao = sessaoValida(new URL(request.url).searchParams.get("sessao")) || "padrao";
-        const filtro = sessao === "padrao"
-            ? "sessao=eq.padrao"
-            : `sessao=in.("padrao","${encodeURIComponent(sessao)}")`;
-        const res = await sbFetch(`/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,blocos,atualizado_em,sessao&${filtro}`);
+        const res = await sbFetch(`/rest/v1/templates_recuperacao?select=etapa,texto,audio_url,blocos,atualizado_em,sessao&sessao=eq.${encodeURIComponent(sessao)}`);
         if (!res) {
             return NextResponse.json({ status: false, message: "Supabase não configurado (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)", error: "Supabase não configurado" }, { status: 500 });
         }
         if (!res.ok) throw new Error(`Supabase: HTTP ${res.status}`);
         const rows: any[] = await res.json();
 
-        const porEtapa: Record<string, any> = {};
-        for (const r of rows) {
-            if ((r.sessao || "padrao") === "padrao") {
-                porEtapa[r.etapa] = { etapa: r.etapa, texto: r.texto, audio_url: r.audio_url, blocos: r.blocos, atualizado_em: r.atualizado_em, origem: "padrao" };
-            }
-        }
-        if (sessao !== "padrao") {
-            for (const r of rows) {
-                if (r.sessao === sessao && temConteudo(r)) {
-                    porEtapa[r.etapa] = { etapa: r.etapa, texto: r.texto, audio_url: r.audio_url, blocos: r.blocos, atualizado_em: r.atualizado_em, origem: "sessao" };
-                }
-            }
-        }
-        return NextResponse.json({ status: true, message: "Templates retrieved", data: Object.values(porEtapa), sessao });
+        const data = (rows || [])
+            .filter((r) => temConteudo(r)) // linha vazia = sem script (a tela mostra "textos genéricos")
+            .map((r) => ({ etapa: r.etapa, texto: r.texto, audio_url: r.audio_url, blocos: r.blocos, atualizado_em: r.atualizado_em, origem: "sessao" }));
+        return NextResponse.json({ status: true, message: "Templates retrieved", data, sessao });
     } catch (error: any) {
         return NextResponse.json({ status: false, message: error?.message || "Failed", error: error?.message || "Failed" }, { status: 500 });
     }

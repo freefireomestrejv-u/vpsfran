@@ -53,10 +53,12 @@ function horaBrasilia() {
 }
 
 // Templates editáveis na aba Recuperação (cache de 60s; cai para o padrão se falhar).
-// Cada sessão pode ter o próprio script; sem personalização, usa o script "padrao".
+// Regra: cada sessão usa SOMENTE o script dela. O script "padrao" é o do produtor:
+// afiliada sem script próprio = textos genéricos do código, sem áudio.
 let tplCache = { quando: 0, dados: {} };
 async function carregarTemplates() {
   if (Date.now() - tplCache.quando < 60_000) return tplCache.dados;
+  const meuCodigo = AFFILIATE_CODE ? AFFILIATE_CODE.trim() : null;
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/templates_recuperacao?select=sessao,etapa,texto,audio_url,blocos`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
@@ -64,11 +66,13 @@ async function carregarTemplates() {
     const rows = await r.json();
     const temConteudo = (t) => (Array.isArray(t.blocos) && t.blocos.length) || String(t.texto || "").trim() || t.audio_url;
     const dados = {};
-    // 1) Base: script padrão (vale para todas as sessões)
-    for (const t of rows || []) {
-      if ((t.sessao || "padrao") === "padrao") dados[t.etapa] = t;
+    // Produtor: base = script "padrao" (afiliada NUNCA herda isso)
+    if (!meuCodigo) {
+      for (const t of rows || []) {
+        if ((t.sessao || "padrao") === "padrao") dados[t.etapa] = t;
+      }
     }
-    // 2) Personalização da SESSÃO deste worker sobrescreve o padrão
+    // Script da PRÓPRIA sessão (sobrescreve o padrão no produtor; é o único na afiliada)
     for (const t of rows || []) {
       if (t.sessao === WAAKG_SESSION_ID && temConteudo(t)) dados[t.etapa] = t;
     }

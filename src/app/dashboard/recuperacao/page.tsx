@@ -280,6 +280,15 @@ export default function RecuperacaoPage() {
                 map[t.etapa] = t;
                 bl[t.etapa] = blocosIniciais(t, t.etapa);
             }
+            // Sessão específica: mostra as 4 etapas sempre (vazio = textos genéricos do sistema)
+            if (escopo !== "padrao") {
+                for (const e of Object.keys(ETAPAS)) {
+                    if (!map[e]) {
+                        map[e] = { etapa: e, texto: "", audio_url: null, blocos: null, origem: "nenhum" };
+                        bl[e] = blocosIniciais(map[e], e);
+                    }
+                }
+            }
             setTpls(map);
             setBlocos(bl);
         } catch (e: any) {
@@ -367,7 +376,9 @@ export default function RecuperacaoPage() {
 
     if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
 
-    const etapasVisiveis = Object.keys(ETAPAS).filter((e) => tpls[e]);
+    const etapasVisiveis = escopo === "padrao"
+        ? Object.keys(ETAPAS).filter((e) => tpls[e])
+        : Object.keys(ETAPAS);
     const abaAtiva = etapasVisiveis.includes(aba) ? aba : etapasVisiveis[0];
     const resumoEtapa = (etapa: string) => {
         const lista = blocos[etapa] || [];
@@ -384,7 +395,7 @@ export default function RecuperacaoPage() {
                 <div>
                     <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Recuperação de carrinho</h2>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Monte a sequência de cada etapa. O script <strong>Padrão</strong> vale para todas as sessões; cada sessão pode ter o próprio script.
+                        Monte a sequência de cada etapa. Cada sessão usa <strong>somente o próprio script</strong> — sem script, valem os textos genéricos do sistema (sem áudio). O <strong>Padrão</strong> é o script do produtor.
                     </p>
                 </div>
 
@@ -450,7 +461,7 @@ export default function RecuperacaoPage() {
                                         ? "bg-primary/10 text-primary border-primary/30"
                                         : "bg-muted text-muted-foreground border-transparent"
                                 )}>
-                                    {tpls[etapa]?.origem === "sessao" ? "Script desta sessão" : "Usando o script padrão"}
+                                    {tpls[etapa]?.origem === "sessao" ? "Script desta sessão" : "Sem script — usa textos genéricos"}
                                 </span>
                             )}
                         </div>
