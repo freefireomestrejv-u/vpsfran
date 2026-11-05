@@ -41,12 +41,14 @@ const IDS_ATIVOS = Object.keys(OFERTAS_ATIVAS).join(",");
 // Exceções que são sempre suas:
 //   - vendas vindas do lembrete de recuperação (utm_source=recuperacao)
 //   - qualquer sessão etiquetada pela nossa automação (sck preenchido)
+// IMPORTANTE: o b4f vence a etiqueta — venda recuperada via link de afiliada
+// (utm_source=recuperacao + b4f) é da AFILIADA e não entra no funil do produtor.
 function eProprio(checkoutUrl: string, utmSource?: string, sck?: string): boolean {
+    if (/b4f=/.test(String(checkoutUrl || ""))) return false; // link de afiliada: nunca do produtor
     const utm = String(utmSource || "").toLowerCase();
     if (utm === "recuperacao") return true;
     if (String(sck || "").trim()) return true;
-    const m = String(checkoutUrl || "").match(/b4f=([A-Za-z0-9_-]+)/);
-    return !m; // sem código de afiliado = link do produtor
+    return true; // sem b4f = link do produtor
 }
 function eProprioPayload(p: any): boolean {
     const tp = p.tracking_parameters || {};
@@ -281,7 +283,7 @@ export async function GET(request: NextRequest) {
             const rangeLem = dias >= 0 ? `&criado_em=gte.${startOfBrDayUTC(dias)}` : "";
             const headersLem = { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` };
             const resLem = await fetch(
-                `${cfg.url}/rest/v1/lembretes?select=valor&pedido_id=like.abandono*&status=eq.enviado${rangeLem}&limit=5000`,
+                `${cfg.url}/rest/v1/lembretes?select=valor&pedido_id=like.abandono*&link_retomada=not.like.*b4f=*&status=eq.enviado${rangeLem}&limit=5000`,
                 { headers: headersLem }
             );
             if (resLem.ok) {
@@ -291,7 +293,7 @@ export async function GET(request: NextRequest) {
                 }
             }
             const resPago = await fetch(
-                `${cfg.url}/rest/v1/lembretes?select=valor&pedido_id=like.abandono*&status=eq.pago${rangeLem}&limit=5000`,
+                `${cfg.url}/rest/v1/lembretes?select=valor&pedido_id=like.abandono*&link_retomada=not.like.*b4f=*&status=eq.pago${rangeLem}&limit=5000`,
                 { headers: headersLem }
             );
             if (resPago.ok) {
